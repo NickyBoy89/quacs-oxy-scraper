@@ -5,7 +5,9 @@ This is a scraper to integrate all the courses from Occidental College (OXY)'s c
 # Requirements
 
 1. Python 3
-1. Python's own `requests` library
+1. Python's `requests` library
+1. The `json` library
+1. The 'bs4' library (BeautifulSoup)
 
 # Running the Script
 
