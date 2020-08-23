@@ -1,6 +1,6 @@
 # Info
 
-This project is a repository for all the scrapers that integrate the data from Occidental College (OXY) into much more managable and formattable `json` files that then can easily integrated into a course scheduling software named [Quacs]("https://github.com/quacs/quacs")
+This project is a repository for all the scrapers that integrate the data from Occidental College (OXY) into much more managable and formattable `json` files that then can easily integrated into a course scheduling software named [Quacs](https://github.com/quacs/quacs)
 
 # Requirements
 
