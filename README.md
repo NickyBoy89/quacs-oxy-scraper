@@ -5,7 +5,7 @@ This project is a repository for all the scrapers that integrate the data from O
 # Requirements
 
 1. Python 3
-1. The python pachages `requests bs4 lxml tqdm json`
+1. The python pachages `requests bs4 lxml tqdm json re`
 
 # How the data comes together
 
