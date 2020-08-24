@@ -33,7 +33,7 @@ def getClassPageData(classButton, sessionData):
         'tabContainer$TabPanel4$txtCRN': '',
         'tabContainer$TabPanel5$ddlMajorsTerm': '201601',
         'tabContainer$TabPanel5$ddlCatalogYear': '201601',
-        '__EVENTTARGET': 'gvResults$ctl02$lnkBtnCrn',
+        '__EVENTTARGET': classButton,
         '__EVENTARGUMENT': '',
         '__LASTFOCUS': '',
         '__VIEWSTATE': re.findall('(?<=(\|__VIEWSTATE\|))(.*?)(?=\|)', response.text)[0][1],
@@ -48,37 +48,84 @@ def getClassPageData(classButton, sessionData):
     }
     postResponse = sessionData.post(url='https://counts.oxy.edu/public/default.aspx', data=postData, headers=postHeaders)
     classSoup = BeautifulSoup(postResponse.text, 'lxml')
+    print(classSoup.find('span', {'id': 'lblCrseDesc'}))
 
-    resvDetailsPanel = ''
     restrictionsPanel = ''
     corequisitesPanel = ''
     prereqsPanel = ''
 
 
-    if classSoup.find(id='resvDetailsPanel') != None:
-        resvDetailsPanel = classSoup.find(id='resvDetailsPanel').find('div').findAll('tr')[1:]
-        print(resvDetailsPanel)
     if classSoup.find(id='restrictionsPanel') != None:
         restrictionsPanel = classSoup.find(id='restrictionsPanel').findNext('ul').findAll('li')
-        for restriction in range(len(restrictionsPanel)):
-            restrictionsPanel[restriction] = re.findall('^([\w\-]+)', restrictionsPanel[restriction].text)
-        print(restrictionsPanel)
+    print(f'Restrictions: {restrictionsPanel}')
+    # print(classSoup.find(id='corequisitesPanel'))
     if classSoup.find(id='corequisitesPanel') != None:
-        corequisitesPanel = classSoup.find(id='corequisitesPanel').findNext('ul').findAll('li')
-        print(corequisitesPanel)
+        corequisitesPanel = classSoup.find(id='corequisitesPanel').findNext('span').text.split(', ')
+        for i in range(len(corequisitesPanel)):
+            corequisitesPanel[i] = joinFirstTwoWordsWithDash(corequisitesPanel[i])
+    print(f'Corequisites: {corequisitesPanel}')
+    # print(classSoup.find(id='prereqsPanel'))
     if classSoup.find(id='prereqsPanel') != None:
-        prereqsPanel = classSoup.find(id='prereqsPanel').findNext('ul').findAll('li')
-        print(prereqsPanel)
-    # resvDetailsPanel
+        prereqsPanel = parsePrerequisites(classSoup.find(id='prereqsPanel').findAll('tr')[1:])
+    print(f'Prerequitites: {prereqsPanel}')
     # restrictionsPanel
     # corequisitesPanel
     # prereqsPanel
 
     # re.findall('^([\w\-]+)', resvDetailsPanel.text)
 
-    return({'reservations': resvDetailsPanel, 'restrictions': restrictionsPanel, 'corequisites': corequisitesPanel, 'prerequisites': prereqsPanel})
+    return([restrictionsPanel, corequisitesPanel, prereqsPanel])
 
+def joinFirstTwoWordsWithDash(words):
+    return(re.findall('([^\s]+\s+[^\s]+)', words)[0].replace(' ', '-'))
 
+def getLevelRestriction(listText):
+    restrictions = {'may_not_be': []}
+    for level in listText:
+        if 'students may not enroll in this class' in level.text:
+            restrictions['may_not_be'] = getPrereqRestriction(re.findall('.+?(?= students may not enroll in this class)', level.text)[0])
+        elif 'students may enroll in this class' in level.text:
+            restrictions['must_be'] = getPrereqRestriction(re.findall('.+?(?= students may enroll in this class)', level.text)[0])
+    return(restrictions)
+
+def getPrereqRestriction(listText):
+    levels = []
+    if 'Graduate' in listText:
+        levels.append('Graduate')
+    if 'Senior' in listText:
+        levels.append('Senior')
+    if 'Junior' in listText:
+        levels.append('Junior')
+    if 'Frosh' in listText:
+        levels.append('Frosh')
+    return(levels)
+def parsePrerequisites(prereqList):
+    returnPrereqs = []
+    nestedList = []
+    for i in prereqList:
+        returnPrereqs.append(i.find('td').text)
+    for prerequisite in returnPrereqs:
+        if '(' in prerequisite:
+            pass
+    print(returnPrereqs)
+    print(nestedList)
+    return(returnPrereqs)
+
+def parseJson(data):
+    finalRestrictions = {}
+
+    if len(data[0]) > 0:
+        finalRestrictions['restrictions'] = {}
+        finalRestrictions['restrictions']['classification'] = getLevelRestriction(data[0])
+    if len(data[1]) > 0:
+        finalRestrictions['corequisites'] = {}
+        finalRestrictions['corequisites']['cross_list_courses'] = data[1]
+    if len(data[2]) > 0:
+        finalRestrictions['prerequisites'] = {}
+        finalRestrictions['prerequisites']['data'] = data[2]
+
+    print(finalRestrictions)
+    return(finalRestrictions)
 
 data = {
     'ScriptManager2': """pageUpdatePanel|tabContainer$TabPanel1$btnGo""",
@@ -126,20 +173,21 @@ if caching:
         request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
         with open('responseData.txt', 'w') as responseData:
             responseData.write(request.text)
+            restrictionsPanel[restriction] = re.findall('^([\w\-]+)', restrictionsPanel[restriction].text)
         response = BeautifulSoup(request.text, 'html.parser')
 else:
     request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
     response = BeautifulSoup(request.text, 'html.parser')
 
 
-testClass = (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'}))[0]
+# testClass = (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'}))[0]
 
 # print(testClass.find('a')['href'][25:-5])
 
 # getClassPageData(session)
 
-for i in tqdm((response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'}))[:10]):
-    dump[i.find('a').text] = getClassPageData(i.find('a')['href'][25:-5], session)
+for i in tqdm((response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'}))[383:387]):
+    dump[i.find('a').text] = parseJson(getClassPageData(i.find('a')['href'][25:-5], session))
 
 
 
