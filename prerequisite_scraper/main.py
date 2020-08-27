@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from os import path
 
-caching = False # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
+caching = True # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
 
 dump = {} # The dict that all the json data is going to come from
 
@@ -101,14 +101,21 @@ def getPrereqRestriction(listText):
     return(levels)
 def parsePrerequisites(prereqList):
     returnPrereqs = []
-    nestedList = []
+    groupedLogic = []
+    insideGroup = False
     for i in prereqList:
         returnPrereqs.append(i.find('td').text)
     for prerequisite in returnPrereqs:
         if '(' in prerequisite:
-            pass
+            groupedLogic.append(prerequisite[1:].strip())
+            insideGroup = True
+        elif ')' in prerequisite:
+            groupedLogic.append(prerequisite[:-1].strip())
+            insideGroup = False
+        elif insideGroup == True:
+            groupedLogic.append(prerequisite)
     print(returnPrereqs)
-    print(nestedList)
+    print(groupedLogic)
     return(returnPrereqs)
 
 def parseJson(data):
