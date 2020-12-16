@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from os import path
 
+import course_request as courses
+
 caching = True # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
 
 dump = {} # The dict that all the json data is going to come from
@@ -15,66 +17,6 @@ soup = BeautifulSoup(initialLoad.text, 'html.parser')
 
 # Breakpoint before long request
 # quit()
-
-def getClassPageData(classButton, sessionData):
-    postData = {
-        'ScriptManager2': f'searchResultsPanel|{classButton}',
-        'tabContainer$TabPanel1$ddlSemesters': '202101',
-        'tabContainer$TabPanel1$ddlSubjects': '',
-        'tabContainer$TabPanel1$txtCrseNum': '',
-        'tabContainer$TabPanel2$ddlCoreTerms': '201601',
-        'tabContainer$TabPanel2$ddlCoreAreas': 'CPFA',
-        'tabContainer$TabPanel2$ddlCoreSubj': 'AMST',
-        'tabContainer$TabPanel3$ddlAdvTerms': '201601',
-        'tabContainer$TabPanel3$ddlAdvSubj': 'AMST',
-        'tabContainer$TabPanel3$ddlAdvTimes': '07000755',
-        'tabContainer$TabPanel3$ddlAdvDays': 'u',
-        'tabContainer$TabPanel4$ddlCRNTerms': '201601',
-        'tabContainer$TabPanel4$txtCRN': '',
-        'tabContainer$TabPanel5$ddlMajorsTerm': '201601',
-        'tabContainer$TabPanel5$ddlCatalogYear': '201601',
-        '__EVENTTARGET': classButton,
-        '__EVENTARGUMENT': '',
-        '__LASTFOCUS': '',
-        '__VIEWSTATE': re.findall('(?<=(\|__VIEWSTATE\|))(.*?)(?=\|)', response.text)[0][1],
-        '__VIEWSTATEGENERATOR': re.findall('(?<=(\|__VIEWSTATEGENERATOR\|))(.*?)(?=\|)', response.text)[0][1],
-        '__EVENTVALIDATION': re.findall('(?<=(\|__EVENTVALIDATION\|))(.*?)(?=\|)', response.text)[0][1],
-        'tabContainer_ClientState': """{"ActiveTabIndex":0,"TabEnabledState":[true,true,true,true,true],"TabWasLoadedOnceState":[true,false,false,false,false]}""",
-        '__VIEWSTATEENCRYPTED': re.findall('(?<=(\|__VIEWSTATEENCRYPTED\|\|))(.*?)(?=\|)', response.text)[0][1],
-        '__ASYNCPOST': 'true'
-    }
-    postHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36'
-    }
-    postResponse = sessionData.post(url='https://counts.oxy.edu/public/default.aspx', data=postData, headers=postHeaders)
-    classSoup = BeautifulSoup(postResponse.text, 'lxml')
-    print(classSoup.find('span', {'id': 'lblCrseDesc'}))
-
-    restrictionsPanel = ''
-    corequisitesPanel = ''
-    prereqsPanel = ''
-
-
-    if classSoup.find(id='restrictionsPanel') != None:
-        restrictionsPanel = classSoup.find(id='restrictionsPanel').findNext('ul').findAll('li')
-    print(f'Restrictions: {restrictionsPanel}')
-    # print(classSoup.find(id='corequisitesPanel'))
-    if classSoup.find(id='corequisitesPanel') != None:
-        corequisitesPanel = classSoup.find(id='corequisitesPanel').findNext('span').text.split(', ')
-        for i in range(len(corequisitesPanel)):
-            corequisitesPanel[i] = joinFirstTwoWordsWithDash(corequisitesPanel[i])
-    print(f'Corequisites: {corequisitesPanel}')
-    # print(classSoup.find(id='prereqsPanel'))
-    if classSoup.find(id='prereqsPanel') != None:
-        prereqsPanel = parsePrerequisites(classSoup.find(id='prereqsPanel').findAll('tr')[1:])
-    print(f'Prerequitites: {prereqsPanel}')
-    # restrictionsPanel
-    # corequisitesPanel
-    # prereqsPanel
-
-    # re.findall('^([\w\-]+)', resvDetailsPanel.text)
-
-    return([restrictionsPanel, corequisitesPanel, prereqsPanel])
 
 def joinFirstTwoWordsWithDash(words):
     return(re.findall('([^\s]+\s+[^\s]+)', words)[0].replace(' ', '-'))
@@ -99,22 +41,29 @@ def getPrereqRestriction(listText):
     if 'Frosh' in listText:
         levels.append('Frosh')
     return(levels)
+
 def parsePrerequisites(prereqList):
     returnPrereqs = []
     groupedLogic = []
     insideGroup = False
+    pareIndex = {'(': [], ')': []}
     for i in prereqList:
         returnPrereqs.append(i.find('td').text)
-    for prerequisite in returnPrereqs:
-        if '(' in prerequisite:
-            groupedLogic.append(prerequisite[1:].strip())
+    for prerequisite in range(len(returnPrereqs)):
+        if '(' in returnPrereqs[prerequisite]: # Note: Does not work with nested parenthesies
+            returnPrereqs[prerequisite] = returnPrereqs[prerequisite][1:].strip() # Strip out the opening parenthesies
+            pareIndex['('].append(prerequisite)
             insideGroup = True
-        elif ')' in prerequisite:
-            groupedLogic.append(prerequisite[:-1].strip())
+        elif ')' in returnPrereqs[prerequisite]:
+            returnPrereqs[prerequisite] = returnPrereqs[prerequisite][:-1].strip() # Strip out the closing parenthesies
+            pareIndex[')'].append(prerequisite)
+            if insideGroup == True:
+                groupedLogic.append(returnPrereqs[(pareIndex['('][0]):(pareIndex[')'][0])])
+                del pareIndex['('][0]
+                del pareIndex[')'][0]
             insideGroup = False
-        elif insideGroup == True:
-            groupedLogic.append(prerequisite)
-    print(returnPrereqs)
+        elif insideGroup == False:
+            groupedLogic.append(returnPrereqs[prerequisite])
     print(groupedLogic)
     return(returnPrereqs)
 
@@ -191,10 +140,8 @@ else:
 
 # print(testClass.find('a')['href'][25:-5])
 
-# getClassPageData(session)
-
 for i in tqdm((response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'}))[383:387]):
-    dump[i.find('a').text] = parseJson(getClassPageData(i.find('a')['href'][25:-5], session))
+    dump[i.find('a').text] = parseJson(courses.getClassPageData(i.find('a')['href'][25:-5], session))
 
 
 

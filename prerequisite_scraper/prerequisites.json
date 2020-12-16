@@ -1,65 +1,6 @@
 {
-  "1025": {
-    "restrictions": {
-      "classification": {
-        "may_not_be": [
-          "Graduate"
-        ]
-      }
-    }
-  },
-  "1896": {
-    "restrictions": {
-      "classification": {
-        "may_not_be": [
-          "Graduate"
-        ]
-      }
-    },
-    "corequisites": {
-      "cross_list_courses": [
-        "CSP-27",
-        "THEA-195"
-      ]
-    }
-  },
-  "1919": {
-    "restrictions": {
-      "classification": {
-        "may_not_be": [
-          "Graduate"
-        ]
-      }
-    },
-    "corequisites": {
-      "cross_list_courses": [
-        "ARTS-270",
-        "CSP-28"
-      ]
-    }
-  },
-  "1028": {
-    "restrictions": {
-      "classification": {
-        "may_not_be": [
-          "Graduate"
-        ],
-        "must_be": [
-          "Senior",
-          "Junior"
-        ]
-      }
-    },
-    "prerequisites": {
-      "data": [
-        "( ARTS  102",
-        "and ARTS  103",
-        "and ARTS  105",
-        "and ARTS  203",
-        "and ARTS  210)",
-        "or ARTS  216",
-        "or ARTS  217"
-      ]
-    }
-  }
+  "1025": {},
+  "1896": {},
+  "1919": {},
+  "1028": {}
 }
