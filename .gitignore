@@ -1,3 +1,4 @@
 quacs-data/
 scraper/
 catalog.json
+__pycache__/

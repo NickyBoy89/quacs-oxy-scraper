@@ -2,19 +2,39 @@ import re
 
 def parse(data):
 
-    # TODO: Parse logic
-
     # Parse parenthesies and clean up the data
     data = parseParenthesies(data)
 
-    for operator in reversed(getOperators(data)):
-        result = addOperator(operator)
+    logicOperators = getOperators(data)
 
-    # print(data)
+    if (isinstance(data[-1], list)):
+        result = addOperator(logicOperators[-1][0], addGroupedElements(data))
+    else:
+        result = addOperator(logicOperators[-1], addGroupedElements(data))
 
-    # print(result)
+    # print(logicOperators)
+    print(result)
+
 
     return 0
+
+def addGroupedElements(elements):
+
+    result = []
+
+    logicOperators = getOperators(elements)
+
+    baseOperator = logicOperators[-1]
+
+    for element in enumerate(reversed(elements)):
+        if (isinstance(element[1], list)):
+            result.append(addOperator(getFirstElement(logicOperators[len(elements) - element[0]]), addGroupedElements(element[1])))
+        elif (logicOperators[element[0]] == baseOperator):
+            result.append(addCourse(stripOperator(element[1])))
+        else:
+            result.append(addOperator(logicOperators[len(elements) - element[0]], addGroupedElements(elements[element[0]:])))
+
+    return result
 
 def addCourse(courseName):
     return {
@@ -22,15 +42,18 @@ def addCourse(courseName):
         "course": courseName
     }
 
-def addOperator(name, *args):
+def stripOperator(term):
+    return re.search(""" (.*)""", term.strip()).group(0).strip()
+
+def addOperator(name, courses):
 
     result = {
         "type": name,
         "nested": []
     }
 
-    for arg in args:
-        result["nested"].append(addCourse(arg))
+    for course in courses:
+        result["nested"].append(course)
 
     return result
 
@@ -38,15 +61,24 @@ def getOperators(data):
 
     logicOperators = []
 
-    for term in data:
-        if (isinstance(term, list)):
-            logicOperators.append(getOperators(term))
-        elif ("and" in term):
+    carryoverTerm = False
+
+    for term in enumerate(data):
+        if (isinstance(term[1], list)):
+            logicOperators.append(getOperators(term[1]))
+        elif ("and" in term[1]):
             logicOperators.append("and")
-        elif ("or" in term):
+            if (carryoverTerm):
+                logicOperators[term[0] - 1] = "and"
+                carryoverTerm = False
+        elif ("or" in term[1]):
             logicOperators.append("or")
+            if (carryoverTerm):
+                logicOperators[term[0] - 1] = "or"
+                carryoverTerm = False
         else:
             logicOperators.append("")
+            carryoverTerm = True
 
     return logicOperators
 
@@ -64,6 +96,18 @@ def getClassRestrictions(text):
         grades.append('Frosh')
 
     return(grades)
+
+def groupStatements(data):
+    result = []
+
+    for state in enumerate(data):
+        pass
+
+def getFirstElement(element):
+    if (isinstance(element, list)):
+        return getFirstElement(element[0])
+    else:
+        return element
 
 def parseParenthesies(data):
 

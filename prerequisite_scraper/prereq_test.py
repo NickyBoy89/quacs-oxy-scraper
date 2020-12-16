@@ -31,7 +31,7 @@ class TestPrerequiteParsing(unittest.TestCase):
     def testBooleanJson1(self):
 
         # Test that the correct template for the courses are generated
-        self.assertEqual(prereq.addOperator("and", '1', '2', '3'), {
+        self.assertEqual(prereq.addOperator("and", [prereq.addCourse('1'), prereq.addCourse('2'), prereq.addCourse('3')]), {
             "type": "and",
             "nested": [
                 {
@@ -52,7 +52,14 @@ class TestPrerequiteParsing(unittest.TestCase):
     def testLogicParser1(self):
 
         # Test that the logic parser works
-        self.assertEqual(prereq.getOperators(['1', ['and 2', 'and 3', 'and 4'], 'or 5']), ['', ['and', 'and', 'and'], 'or'])
+        self.assertEqual(prereq.getOperators(['1', 'and 1', ['and 2', 'and 3', 'and 4'], 'or 5']), ['and', 'and', ['and', 'and', 'and'], 'or'])
+
+    def testStrippingOperators(self):
+
+        # Test that stripping off the text of the operator works
+        self.assertEqual(prereq.stripOperator('and 1'), '1')
+
+        self.assertEqual(prereq.stripOperator(' and 2'), '2')
 
     def testPrereq1(self):
 
