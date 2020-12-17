@@ -10,9 +10,9 @@ import prereq_parser as prereq
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-caching = True # Set this to true to speed up future requests
+caching = False # Set this to true to speed up future requests
 
-scrapeRange = [383, 387] # What range of values that the scrape is going to do, for testing, set this smaller for it to run faster
+scrapeRange = [0, None] # What range of values that the scrape is going to do, for testing, set this smaller for it to run faster
 
 dump = {} # The dict that all the json data is going to come from
 
@@ -128,7 +128,7 @@ def parsePrerequisites(prereqList):
             insideGroup = False
         elif insideGroup == False:
             groupedLogic.append(returnPrereqs[prerequisite])
-    print(groupedLogic)
+    # print(groupedLogic)
     return(returnPrereqs)
 
 def parseJson(data):
