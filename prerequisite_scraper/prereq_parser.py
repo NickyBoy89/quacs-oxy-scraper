@@ -1,27 +1,25 @@
 import re, json
 
-def parse(data):
+def parse(data, verbose = False):
 
     # Parse parenthesies and clean up the data
     data = parseParenthesies(data)
 
-    # print(data)
-    # print(getOperators(data))
-
-    print(json.dumps(addGroupedElements(data)))
+    if (verbose): # Setting this to true will fail, because the function modifies the underlying array
+        print(addGroupedElements(data))
 
     return addGroupedElements(data)
 
 # Returns already formed JSON
 def addGroupedElements(elements):
 
-    print(elements)
+    # print(elements)
 
     lockedOperator = None
 
     logicOperators = getOperators(elements)
 
-    baseOperator = logicOperators[-1]
+    baseOperator = getFirstElement(logicOperators[-1])
 
     result = addOperator(baseOperator)
 
@@ -29,7 +27,13 @@ def addGroupedElements(elements):
         normIndex = (len(elements) - 1) - element[0]
 
         if (isinstance(element[1], list)):
-            result.append(addGroupedElements(element[1]))
+
+            # Modified the logic operators on the beginning of lists
+            logicOperators[normIndex][0] = logicOperators[normIndex][1]
+            element[1][0] = f"{logicOperators[normIndex][1]} " + stripOperator(element[1][0])
+
+            result["nested"].insert(0, addGroupedElements(element[1]))
+
         elif (logicOperators[normIndex] == baseOperator):
             result["nested"].insert(0, addCourse(stripOperator(element[1])))
         else:

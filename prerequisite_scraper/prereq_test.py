@@ -115,8 +115,10 @@ class TestPrerequiteParsing(unittest.TestCase):
 
     def testPrereq3(self):
 
+        self.maxDiff = None
+
         # Phys 266
-        self.assertEqual(prereq.parse(['( PHYS 110', 'or PHYS 115', 'or APPM', 'or OXPE)', '(and PHYS 120', 'or PHYS 125', 'or PHYS 230', 'or APPE)']),
+        self.assertEqual(prereq.parse(['( PHYS 110', 'or PHYS 115', 'or APPM', 'or OXPE)', '(and PHYS 120', 'or PHYS 125', 'or PHYS 230', 'or APPE)'], verbose = False),
 
         {
             "type": "and",
