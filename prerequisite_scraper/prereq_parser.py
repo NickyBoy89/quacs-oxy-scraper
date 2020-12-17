@@ -1,38 +1,45 @@
-import re
+import re, json
 
 def parse(data):
 
     # Parse parenthesies and clean up the data
     data = parseParenthesies(data)
 
-    logicOperators = getOperators(data)
+    # print(data)
+    # print(getOperators(data))
 
-    if (isinstance(data[-1], list)):
-        result = addOperator(logicOperators[-1][0], addGroupedElements(data))
-    else:
-        result = addOperator(logicOperators[-1], addGroupedElements(data))
+    print(json.dumps(addGroupedElements(data)))
 
-    # print(logicOperators)
-    print(result)
+    return addGroupedElements(data)
 
-
-    return 0
-
+# Returns already formed JSON
 def addGroupedElements(elements):
 
-    result = []
+    print(elements)
+
+    lockedOperator = None
 
     logicOperators = getOperators(elements)
 
     baseOperator = logicOperators[-1]
 
+    result = addOperator(baseOperator)
+
     for element in enumerate(reversed(elements)):
+        normIndex = (len(elements) - 1) - element[0]
+
         if (isinstance(element[1], list)):
-            result.append(addOperator(getFirstElement(logicOperators[len(elements) - element[0]]), addGroupedElements(element[1])))
-        elif (logicOperators[element[0]] == baseOperator):
-            result.append(addCourse(stripOperator(element[1])))
+            result.append(addGroupedElements(element[1]))
+        elif (logicOperators[normIndex] == baseOperator):
+            result["nested"].insert(0, addCourse(stripOperator(element[1])))
         else:
-            result.append(addOperator(logicOperators[len(elements) - element[0]], addGroupedElements(elements[element[0]:])))
+            if (logicOperators[normIndex] == lockedOperator):
+                continue
+
+            lockedOperator = logicOperators[normIndex]
+
+            lockedOperator = logicOperators[normIndex]
+            result["nested"].append(addGroupedElements(elements[:normIndex + 1]))
 
     return result
 
@@ -43,18 +50,21 @@ def addCourse(courseName):
     }
 
 def stripOperator(term):
-    return re.search(""" (.*)""", term.strip()).group(0).strip()
+    if ("and" in term or "or" in term):
+        return re.search(""" (.*)""", term.strip()).group(0).strip()
+    else:
+        return term
 
-def addOperator(name, courses):
+def addOperator(name, courses = None):
 
     result = {
         "type": name,
         "nested": []
     }
 
-    for course in courses:
-        result["nested"].append(course)
-
+    if courses != None:
+        for course in courses:
+            result["nested"].append(course)
     return result
 
 def getOperators(data):

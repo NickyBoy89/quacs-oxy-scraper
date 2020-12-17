@@ -8,27 +8,21 @@ prerequisites = ['1', 'and 2', 'and 3', 'or 4']
 
 class TestPrerequiteParsing(unittest.TestCase):
 
-    def testParenthesies1(self):
+    def testParenthesies(self):
 
         # General parenthesies test
         self.assertEqual(prereq.parseParenthesies(['( 1', '2', '3)', '(1', '2)', '5']), [['1', '2', '3'], ['1', '2'], '5'])
 
-    # def testParenthesies2(self):
-
         # Test for insane levels of grouping
         # self.assertEqual(prereq.parseParenthesies(['((((1', '2)', '3)', '4)', '5)']), [[[[['1', '2'], '3'], '4'], '5']])
-
-    def testParenthesies3(self):
 
         # Test that unclosed parenthesies just select the rest of the requirements
         self.assertEqual(prereq.parseParenthesies(['(1', '2)', '(1', '2', '3']), [['1', '2'], ['1', '2', '3']])
 
-    def testParenthesies4(self):
-
         # Test that the function will not change a function with no parenthesies
         self.assertEqual(prereq.parseParenthesies(['1', '2', '3']), ['1', '2', '3'])
 
-    def testBooleanJson1(self):
+    def testAddingOperators(self):
 
         # Test that the correct template for the courses are generated
         self.assertEqual(prereq.addOperator("and", [prereq.addCourse('1'), prereq.addCourse('2'), prereq.addCourse('3')]), {
@@ -49,7 +43,12 @@ class TestPrerequiteParsing(unittest.TestCase):
             ]
         })
 
-    def testLogicParser1(self):
+        self.assertEqual(prereq.addOperator("and"), {
+            "type": "and",
+            "nested": []
+        })
+
+    def testLogicParser(self):
 
         # Test that the logic parser works
         self.assertEqual(prereq.getOperators(['1', 'and 1', ['and 2', 'and 3', 'and 4'], 'or 5']), ['and', 'and', ['and', 'and', 'and'], 'or'])
