@@ -1,6 +1,92 @@
 {
-  "1025": {},
-  "1896": {},
-  "1919": {},
-  "1028": {}
+  "1025": {
+    "restrictions": {
+      "classification": {
+        "may_not_be": [
+          "Graduate"
+        ]
+      }
+    }
+  },
+  "1896": {
+    "restrictions": {
+      "classification": {
+        "may_not_be": [
+          "Graduate"
+        ]
+      }
+    },
+    "corequisites": {
+      "cross_list_courses": [
+        "CSP-27",
+        "THEA-195"
+      ]
+    }
+  },
+  "1919": {
+    "restrictions": {
+      "classification": {
+        "may_not_be": [
+          "Graduate"
+        ]
+      }
+    },
+    "corequisites": {
+      "cross_list_courses": [
+        "ARTS-270",
+        "CSP-28"
+      ]
+    }
+  },
+  "1028": {
+    "restrictions": {
+      "classification": {
+        "may_not_be": [
+          "Graduate"
+        ],
+        "must_be": [
+          "Senior",
+          "Junior"
+        ]
+      }
+    },
+    "prerequisites": {
+      "type": "or",
+      "nested": [
+        {
+          "type": "course",
+          "course": "ARTS  216"
+        },
+        {
+          "type": "course",
+          "course": "ARTS  217"
+        },
+        {
+          "type": "and",
+          "nested": [
+            {
+              "type": "course",
+              "course": "ARTS  102"
+            },
+            {
+              "type": "course",
+              "course": "ARTS  103"
+            },
+            {
+              "type": "course",
+              "course": "ARTS  105"
+            },
+            {
+              "type": "course",
+              "course": "ARTS  203"
+            },
+            {
+              "type": "course",
+              "course": "ARTS  210"
+            }
+          ]
+        }
+      ]
+    }
+  }
 }
