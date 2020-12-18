@@ -1,5 +1,8 @@
 import json, math
 
+from datetime import date
+from itertools import combinations
+
 # Load in the courses
 with open("courses.json", "r") as courses_file:
     data = json.load(courses_file)
@@ -50,7 +53,6 @@ for _ in range(BIT_VEC_SIZE):
 for dept in data:
     for course in dept["courses"]:
         for section in course["sections"]:
-            # print(section)
             conflict = [0] * BIT_VEC_SIZE
             for time in section["timeslots"]:
                 end = time["dateEnd"].split("/")
@@ -86,11 +88,10 @@ for dept in data:
                                     )
             if sum(conflict) == 0:
                 continue
+
             crn_to_courses[section["crn"]] = course["id"]
-            print(section["crn"])
             conflicts[section["crn"]] = conflict
 
-print(conflicts, conflict)
 # Compute unnecessary conflict bits - where a bit is defined as unnecessary if its removal does not affect the result conflict checking
 # The following code computes a list of candidates that fit this criteria
 unnecessary_indices = set()

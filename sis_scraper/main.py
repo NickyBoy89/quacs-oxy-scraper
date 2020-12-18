@@ -120,7 +120,7 @@ def getClassDataFromRow(data, storage):
     timingData = data.find('table', {'cellpadding': '2'}).findAll('td')
     for day in timingData[1].text:
         days.append(day)
-    timeslots = [{'days': days, 'timeStart': timeToMilitary(timingData[0].text, True), 'timeEnd': timeToMilitary(timingData[0].text, False), 'instructor': data.find('abbr')['title'], 'dateStart': '', 'dateEnd': '', 'location': ''}]
+    timeslots = [{'days': days, 'timeStart': timeToMilitary(timingData[0].text, True), 'timeEnd': timeToMilitary(timingData[0].text, False), 'instructor': data.find('abbr')['title'], 'dateStart': '8/24', 'dateEnd': '11/20', 'location': ''}]
 
 
     storage[courseName] = {}
@@ -133,9 +133,9 @@ def getClassDataFromRow(data, storage):
     return([crn, subj, crse, sec, credMin, credMax, title, attribute, timeslots])
 
 def insertClassDataIntoJson(rowData, mapToChange):
-    print(rowData)
+    # print(rowData)
     classData = getClassDataFromRow(rowData, throwaway)
-    print(classData)
+    # print(classData)
     for section in range(len(mapToChange)):
         if (mapToChange[section]['code'] == classData[1]):
             if (len(mapToChange[section]['courses']) == 0):
@@ -152,12 +152,12 @@ for i in (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X
 
 
 
-print(dump)
+# print(dump)
 
 
 
 
 # Saving data into json file
-print(json.dumps(dump, indent=4, sort_keys=True))
+# print(json.dumps(dump, indent=4, sort_keys=True))
 with open(f"courses.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
     json.dump(dump, outfile, sort_keys=False, indent=2)
