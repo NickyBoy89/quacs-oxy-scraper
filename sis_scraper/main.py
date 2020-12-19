@@ -3,6 +3,10 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from os import path
 
+# Import the scrip to create the mod.rs
+
+import mod_gen as modgen
+
 # Ignore the SSL errors
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -150,12 +154,9 @@ def insertClassDataIntoJson(rowData, mapToChange):
 for i in (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'})):
     insertClassDataIntoJson(i, dump)
 
+# Generate the mod.rs file from the data
 
-
-# print(dump)
-
-
-
+modgen.genmod(dump, None)
 
 # Saving data into json file
 # print(json.dumps(dump, indent=4, sort_keys=True))

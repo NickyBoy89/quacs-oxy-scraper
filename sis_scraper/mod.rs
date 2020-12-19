@@ -1,10 +1,10 @@
-        //This file was automatically generated. Please do not modify it directly
-        use ::phf::{{phf_map, Map}};
+            //This file was automatically generated. Please do not modify it directly
+            use ::phf::{{phf_map, Map}};
 
-        pub const BIT_VEC_LEN: usize = 1;
+            pub const BIT_VEC_LEN: usize = 1;
 
-        pub static CRN_TIMES: Map<u32, [u64; BIT_VEC_LEN]> = phf_map! {
-        	1001u32 => [2],
+            pub static CRN_TIMES: Map<u32, [u64; BIT_VEC_LEN]> = phf_map! {
+            	1001u32 => [2],
 	1266u32 => [32],
 	1916u32 => [1],
 	1018u32 => [0],
@@ -50,10 +50,10 @@
 	1670u32 => [2],
 	1307u32 => [64],
 
-        };
+            };
 
-        pub static CRN_COURSES: Map<u32, &'static str> = phf_map! {
-        	1001u32 => "AMST-101",
+            pub static CRN_COURSES: Map<u32, &'static str> = phf_map! {
+            	1001u32 => "AMST-101",
 	1266u32 => "ARAB-201",
 	1916u32 => "ARTH-160",
 	1018u32 => "ARTS-101",

@@ -1,4 +1,4 @@
-all: courses modgen
+all: courses
 
 courses:
 	python3 main.py
