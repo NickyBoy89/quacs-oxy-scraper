@@ -2,6 +2,8 @@
 
 This project is a repository for all the scrapers that integrate the data from Occidental College (OXY) into much more managable and formattable `json` files that then can easily integrated into a course scheduling software named [Quacs](https://github.com/quacs/quacs)
 
+This was written both before and after I took Data Structures at my school, so any code that is not the prerequisite scraper logic tends to be rather convoluted
+
 # Requirements
 
 1. Python 3
@@ -21,4 +23,6 @@ This project is a repository for all the scrapers that integrate the data from O
 1. Every scraper has its individual folder, in the section `How the data comes together`
 1. Navigate into the respective folder and run the `main.py` function by typing `python3 main.py`
 
-NOTE: Please note that some of the functions may take longer than thirty seconds to run
+*NOTE:* Please note that some of the functions take a long time to run (>30s) because of the speed of the servers that they scrape data off of
+
+The `prerequisite_scraper` is the worst offender, having to query the server each for ~700+ classes, and takes around 20 minutes total

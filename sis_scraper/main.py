@@ -1,7 +1,15 @@
-import requests, json, re
+import requests, json, re, urllib3
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from os import path
+
+# Import the scrip to create the mod.rs
+
+import mod_gen as modgen
+
+# Ignore the SSL errors
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 caching = False # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
 
@@ -116,11 +124,11 @@ def getClassDataFromRow(data, storage):
     timingData = data.find('table', {'cellpadding': '2'}).findAll('td')
     for day in timingData[1].text:
         days.append(day)
-    timeslots = [{'days': days, 'timeStart': timeToMilitary(timingData[0].text, True), 'timeEnd': timeToMilitary(timingData[0].text, False), 'instructor': data.find('abbr')['title'], 'dateStart': '', 'dateEnd': '', 'location': ''}]
+    timeslots = [{'days': days, 'timeStart': timeToMilitary(timingData[0].text, True), 'timeEnd': timeToMilitary(timingData[0].text, False), 'instructor': data.find('abbr')['title'], 'dateStart': '8/24', 'dateEnd': '11/20', 'location': ''}]
 
 
     storage[courseName] = {}
-    storage[courseName]['crn'] = crn # Course crn (ex: 1001)
+    storage[courseName]['crn'] = int(crn) # Course crn (ex: 1001)
     storage[courseName]['subj'] = subj # Course number (ex: AMST)
     storage[courseName]['crse'] = crse # Course number (ex: 201)
     storage[courseName]['title'] = title # Course name (ex: Introduction to American Studies)
@@ -129,14 +137,14 @@ def getClassDataFromRow(data, storage):
     return([crn, subj, crse, sec, credMin, credMax, title, attribute, timeslots])
 
 def insertClassDataIntoJson(rowData, mapToChange):
-    print(rowData)
+    # print(rowData)
     classData = getClassDataFromRow(rowData, throwaway)
-    print(classData)
+    # print(classData)
     for section in range(len(mapToChange)):
         if (mapToChange[section]['code'] == classData[1]):
             if (len(mapToChange[section]['courses']) == 0):
                 mapToChange[section]['courses'].append({'title': classData[6], 'subj': classData[1], 'crse': classData[0], 'id': f'{classData[1]}-{classData[2]}', 'sections': []})
-                mapToChange[section]['courses'][0]['sections'].append({'crn': classData[0], 'subj': classData[1], 'crse': classData[2], 'sec': classData[3], 'credMin': classData[4], 'credMax': classData[5], 'title': classData[6], 'attribute': classData[7], 'timeslots': classData[8]})
+                mapToChange[section]['courses'][0]['sections'].append({'crn': int(classData[0]), 'subj': classData[1], 'crse': classData[2], 'sec': classData[3], 'credMin': int(classData[4]), 'credMax': int(classData[5]), 'title': classData[6], 'attribute': classData[7], 'timeslots': classData[8]})
             else:
                 for course in range(len(mapToChange[section]['courses'])):
                     if mapToChange[section]['courses'][course]['crse'] == classData[0]:
@@ -146,14 +154,11 @@ def insertClassDataIntoJson(rowData, mapToChange):
 for i in (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'})):
     insertClassDataIntoJson(i, dump)
 
+# Generate the mod.rs file from the data
 
-
-print(dump)
-
-
-
+modgen.genmod(dump, None)
 
 # Saving data into json file
-print(json.dumps(dump, indent=4, sort_keys=True))
-with open(f"catalog.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
+# print(json.dumps(dump, indent=4, sort_keys=True))
+with open(f"courses.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
     json.dump(dump, outfile, sort_keys=False, indent=2)
