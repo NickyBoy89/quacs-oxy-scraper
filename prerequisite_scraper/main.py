@@ -1,29 +1,32 @@
-import requests, json, re
+import requests, json, re, time
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from os import path
 import urllib3
 
+import concurrent.futures
+
 import prereq_parser as prereq
 
 # Ignore the SSL errors
-
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-caching = False # Set this to true to speed up future requests
+caching = False # Set this to True to cache the ~15s long initial request to the server
 
-scrapeRange = [0, None] # What range of values that the scrape is going to do, for testing, set this smaller for it to run faster
-
-dump = {} # The dict that all the json data is going to come from
+dump = {} # Stores the final JSON generated
 
 session = requests.Session() # Initialize the browser session
 
-# Load the homepage and get its data
+# Load the homepage and get its data into a session
 initialLoad = session.get('https://counts.oxy.edu/public/default.aspx', verify=False)
 soup = BeautifulSoup(initialLoad.text, 'html.parser')
 
-# Extracts data from class
-def getClassPageData(classButton, sessionData, verbose = False):
+# Extracts data from class page
+def getClassPageData(data, sessionData, threadNumber, verbose = False):
+    print(f"Started thread {threadNumber}")
+
+    classButton = data.find('a')['href'][25:-5]
+
     postData = {
         'ScriptManager2': f'searchResultsPanel|{classButton}',
         'tabContainer$TabPanel1$ddlSemesters': '202101',
@@ -74,12 +77,17 @@ def getClassPageData(classButton, sessionData, verbose = False):
     if classSoup.find(id='prereqsPanel') != None:
         prereqsPanel = parsePrerequisites(classSoup.find(id='prereqsPanel').findAll('tr')[1:])
 
+    if data.find('a') != None:
+        textKey = data.find('a').text
+
     if (verbose):
         print(f'Prerequitites: {prereqsPanel}')
         print(f'Corequisites: {corequisitesPanel}')
         print(f'Restrictions: {restrictionsPanel}')
 
-    return([restrictionsPanel, corequisitesPanel, prereqsPanel])
+    print(f"Finished thread {threadNumber}")
+
+    return([restrictionsPanel, corequisitesPanel, prereqsPanel, textKey])
 
 
 def joinFirstTwoWordsWithDash(words):
@@ -94,6 +102,7 @@ def getLevelRestriction(listText):
             restrictions['must_be'] = getPrereqRestriction(re.findall('.+?(?= students may enroll in this class)', level.text)[0])
     return(restrictions)
 
+# Restrictions panel
 def getPrereqRestriction(listText):
     levels = []
     if 'Graduate' in listText:
@@ -106,6 +115,7 @@ def getPrereqRestriction(listText):
         levels.append('Frosh')
     return(levels)
 
+# Parenthesies stripping logic
 def parsePrerequisites(prereqList):
     returnPrereqs = []
     groupedLogic = []
@@ -131,6 +141,7 @@ def parsePrerequisites(prereqList):
     # print(groupedLogic)
     return(returnPrereqs)
 
+# Parses the data that comes from getClassPageData into JSON
 def parseJson(data):
     finalRestrictions = {}
 
@@ -178,9 +189,7 @@ headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36'
 }
 
-
 # Gets all the course information and turns it into a soup, plus some pseudo-caching logic to speed up development
-
 if caching:
     if path.exists('cached_response'):
         print('Found pre-existing response data, loading that in')
@@ -192,28 +201,32 @@ if caching:
         request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
         with open('cached_response', 'w') as responseData:
             responseData.write(request.text)
-            restrictionsPanel[restriction] = re.findall('^([\w\-]+)', restrictionsPanel[restriction].text)
         response = BeautifulSoup(request.text, 'html.parser')
 else:
+    print("Starting request for all classes to server. This will take ~15 seconds to complete")
     request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
     response = BeautifulSoup(request.text, 'html.parser')
+    print("Finished getting response")
 
+start = time.time()
 
-# testClass = (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'}))[0]
+# Finds all classes by rows
+classRows = response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'})
 
-# print(testClass.find('a')['href'][25:-5])
+# Multithreading
+with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
 
-for i in tqdm((response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'}))[scrapeRange[0]:scrapeRange[1]]):
-    dump[i.find('a').text] = parseJson(getClassPageData(i.find('a')['href'][25:-5], session, verbose = False))
+    future_to_url = {executor.submit(getClassPageData, i[1], session, i[0], verbose=False): i for i in enumerate(classRows)}
 
+    for future in concurrent.futures.as_completed(future_to_url):
 
+        data = future.result()
 
-# print(dump)
-
-
-
+        dump[data[3]] = parseJson(data)
 
 # Saving data into json file
-print(json.dumps(dump, indent=4, sort_keys=True))
+# print(json.dumps(dump, indent=4, sort_keys=True))
 with open(f"prerequisites.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
     json.dump(dump, outfile, sort_keys=False, indent=2)
+
+print(time.time() - start)
