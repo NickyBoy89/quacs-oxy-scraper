@@ -55,5 +55,5 @@ UniversityId = 719
 rpiProfessorlist = createprofessorlist()
 
 print(json.dumps(rpiProfessorlist, indent=4, sort_keys=True))
-with open(f"rmp1.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
+with open(f"rmp.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
     json.dump(rpiProfessorlist , outfile, sort_keys=False, indent=2)

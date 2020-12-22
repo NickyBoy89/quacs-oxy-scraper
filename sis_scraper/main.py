@@ -83,7 +83,7 @@ else:
     request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
     response = BeautifulSoup(request.text, 'html.parser')
 # Get the course catalog data to get some of the things that we have already generated
-with open('../catalog_scraper/catalog.json') as catalogjson:
+with open('catalog.json') as catalogjson:
     catalogData = json.load(catalogjson)
 
 # quit()
