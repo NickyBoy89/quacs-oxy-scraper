@@ -51,6 +51,6 @@ for i in getMainElementsOfUrl(url):
 
 # print(parseClassSite('https://oxy.smartcatalogiq.com/2019-2020/Catalog/Course-Descriptions/ARAB-Arabic/200/ARAB-202'))
 
-print(json.dumps(dump, indent=4, sort_keys=True))
+# print(json.dumps(dump, indent=4, sort_keys=True))
 with open(f"catalog.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
-    json.dump(dump, outfile, sort_keys=False, indent=2)
+    json.dump(dump, outfile, sort_keys=True, indent=2)

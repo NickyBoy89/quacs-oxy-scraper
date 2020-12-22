@@ -227,6 +227,6 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
 # Saving data into json file
 # print(json.dumps(dump, indent=4, sort_keys=True))
 with open(f"prerequisites.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
-    json.dump(dump, outfile, sort_keys=False, indent=2)
+    json.dump(dump, outfile, sort_keys=True, indent=2)
 
 print(time.time() - start)
