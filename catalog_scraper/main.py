@@ -1,10 +1,23 @@
-import requests, json, re
+import requests, json, re, sys
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 import concurrent.futures
 
-url = 'https://oxy.smartcatalogiq.com/en/2019-2020/Catalog/Course-Descriptions'
+if (len(sys.argv) > 1):
+    term = sys.argv[1]
+else:
+    with open("../semesters/semesters.json") as semesters:
+        term = semesters.read().split("\n")[-2]
+
+termYears = [str(int(term[:4]) - 1), term[:4]] # Get the academic year based on the term code (ex: 2019-2020)
+
+if (int(termYears[0]) < 2018):
+    url = f'https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Courses'
+else:
+    url = f'https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Course-Descriptions'
+
+print(url)
 
 def parseClassSite(url):
 

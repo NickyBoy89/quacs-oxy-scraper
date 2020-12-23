@@ -1,4 +1,4 @@
-import requests, json, re, time
+import requests, json, re, time, sys
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from os import path
@@ -10,6 +10,12 @@ import prereq_parser as prereq
 
 # Ignore the SSL errors
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+if (len(sys.argv) > 1):
+    term = sys.argv[1]
+else:
+    with open("../semesters/semesters.json") as semesters:
+        term = semesters.read().split("\n")[-2]
 
 caching = False # Set this to True to cache the ~15s long initial request to the server
 
@@ -29,7 +35,7 @@ def getClassPageData(data, sessionData, threadNumber, verbose = False):
 
     postData = {
         'ScriptManager2': f'searchResultsPanel|{classButton}',
-        'tabContainer$TabPanel1$ddlSemesters': '202101',
+        'tabContainer$TabPanel1$ddlSemesters': term,
         'tabContainer$TabPanel1$ddlSubjects': '',
         'tabContainer$TabPanel1$txtCrseNum': '',
         'tabContainer$TabPanel2$ddlCoreTerms': '201601',
@@ -167,7 +173,7 @@ data = {
     '__VIEWSTATEGENERATOR': soup.find(id='__VIEWSTATEGENERATOR')['value'],
     '__VIEWSTATEENCRYPTED': soup.find(id='__VIEWSTATEENCRYPTED')['value'],
     '__EVENTVALIDATION': soup.find(id='__EVENTVALIDATION')['value'],
-    'tabContainer$TabPanel1$ddlSemesters': '202101',
+    'tabContainer$TabPanel1$ddlSemesters': term,
     'tabContainer$TabPanel1$ddlSubjects': '',
     'tabContainer$TabPanel1$txtCrseNum': '',
     'tabContainer$TabPanel2$ddlCoreTerms': '201601',

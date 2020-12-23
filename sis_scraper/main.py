@@ -1,4 +1,4 @@
-import requests, json, re, urllib3
+import requests, json, re, urllib3, sys
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 from os import path
@@ -10,6 +10,12 @@ import mod_gen as modgen
 # Ignore the SSL errors
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+if (len(sys.argv) > 1):
+    term = sys.argv[1]
+else:
+    with open("../semesters/semesters.json") as semesters:
+        term = semesters.read().split("\n")[-2]
 
 caching = False # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
 
@@ -42,7 +48,7 @@ data = {
     '__VIEWSTATEGENERATOR': soup.find(id='__VIEWSTATEGENERATOR')['value'],
     '__VIEWSTATEENCRYPTED': soup.find(id='__VIEWSTATEENCRYPTED')['value'],
     '__EVENTVALIDATION': soup.find(id='__EVENTVALIDATION')['value'],
-    'tabContainer$TabPanel1$ddlSemesters': '202101',
+    'tabContainer$TabPanel1$ddlSemesters': term,
     'tabContainer$TabPanel1$ddlSubjects': '',
     'tabContainer$TabPanel1$txtCrseNum': '',
     'tabContainer$TabPanel2$ddlCoreTerms': '201601',
