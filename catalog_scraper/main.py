@@ -7,7 +7,7 @@ import concurrent.futures
 if (len(sys.argv) > 1):
     term = sys.argv[1]
 else:
-    with open("../semesters/semesters.json") as semesters:
+    with open("semesters.json") as semesters:
         term = semesters.read().split("\n")[-2]
 
 termYears = [str(int(term[:4]) - 1), term[:4]] # Get the academic year based on the term code (ex: 2019-2020)
