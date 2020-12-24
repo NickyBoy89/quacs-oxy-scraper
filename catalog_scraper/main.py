@@ -51,11 +51,11 @@ def getMainElementsOfUrl(url):
 
 dump = {}
 
-for i in getMainElementsOfUrl(url):
+for i in tqdm(getMainElementsOfUrl(url)):
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
 
-            future_to_url = {executor.submit(parseClassSite, f"https://oxy.smartcatalogiq.com{j['href']}"): j for j in tqdm(getMainElementsOfUrl(f"https://oxy.smartcatalogiq.com{i['href']}"))}
+            future_to_url = {executor.submit(parseClassSite, f"https://oxy.smartcatalogiq.com{j['href']}"): j for j in getMainElementsOfUrl(f"https://oxy.smartcatalogiq.com{i['href']}")}
 
             for future in concurrent.futures.as_completed(future_to_url):
                 data = future.result()
