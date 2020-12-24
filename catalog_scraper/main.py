@@ -66,4 +66,4 @@ for i in getMainElementsOfUrl(url):
 
 # print(json.dumps(dump, indent=4, sort_keys=True))
 with open(f"catalog.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
-    json.dump(dump, outfile, sort_keys=True, indent=2)
+    json.dump(dump, outfile, sort_keys=False, indent=2)
