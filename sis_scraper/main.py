@@ -19,18 +19,20 @@ else:
 
 caching = False # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
 
-dump = [] # The dict that all the json data is going to come from
+dump = [] # The array that all the json data is going to be put into
 
 session = requests.Session() # Initialize the browser session
 
 # Load the homepage and get its data
+print("Starting request")
 initialLoad = session.get('https://counts.oxy.edu/public/default.aspx', verify=False)
 soup = BeautifulSoup(initialLoad.text, 'html.parser')
-
+print("Finished request")
 
 # Maps the course code to the course name (ex: AMST is mapped to American Studies)
 codeMapping = {}
 
+# Populate the dump variable with the departments
 for i in soup.find(id='tabContainer_TabPanel3_ddlAdvSubj').findAll('option'):
     codeMapping[i['value']] = i.text
     dump.append({'name': i.text, 'code': i['value'], 'courses': []})
@@ -86,8 +88,11 @@ if caching:
             responseData.write(request.text)
         response = BeautifulSoup(request.text, 'html.parser')
 else:
+    print("Starting request for all classes to server. This will take ~15 seconds to complete")
     request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
     response = BeautifulSoup(request.text, 'html.parser')
+    print("Finished getting response")
+
 # Get the course catalog data to get some of the things that we have already generated
 with open('catalog.json') as catalogjson:
     catalogData = json.load(catalogjson)
@@ -142,23 +147,55 @@ def getClassDataFromRow(data, storage):
 
     return([crn, subj, crse, sec, credMin, credMax, title, attribute, timeslots])
 
-def insertClassDataIntoJson(rowData, mapToChange):
-    # print(rowData)
+def addCourse(course):
+    return {
+        "crn": int(course[0]),
+        "subj": course[1],
+        "crse": course[2],
+        "sec": course[2],
+        "credMin": int(course[4]),
+        "credMax": int(course[5]),
+        "title": course[6],
+        "attribute": course[7],
+        "timeslots": course[8]
+    }
+
+def insertClassDataIntoJson(rowData):
+
     classData = getClassDataFromRow(rowData, throwaway)
     # print(classData)
-    for section in range(len(mapToChange)):
-        if (mapToChange[section]['code'] == classData[1]):
-            if (len(mapToChange[section]['courses']) == 0):
-                mapToChange[section]['courses'].append({'title': classData[6], 'subj': classData[1], 'crse': classData[0], 'id': f'{classData[1]}-{classData[2]}', 'sections': []})
-                mapToChange[section]['courses'][0]['sections'].append({'crn': int(classData[0]), 'subj': classData[1], 'crse': classData[2], 'sec': classData[3], 'credMin': int(classData[4]), 'credMax': int(classData[5]), 'title': classData[6], 'attribute': classData[7], 'timeslots': classData[8]})
-            else:
-                for course in range(len(mapToChange[section]['courses'])):
-                    if mapToChange[section]['courses'][course]['crse'] == classData[0]:
-                        mapToChange[section]['courses'][course]['sections'].append(classData)
-                        break
+
+    for department in enumerate(dump):
+
+        # print(department[1])
+
+        # Test if class is in current department
+        if (department[1]['code'] == classData[1]):
+
+            # True if course is found in the courses
+            courseFound = False
+
+            # Tests to see if the course is already in the courses
+            for course in enumerate(department[1]["courses"]):
+                if (course[1]["title"] == classData[6]):
+
+                    courseFound = True
+
+                    dump[department[0]]["courses"][course[0]]["sections"].append(addCourse(classData))
+
+            if (not courseFound):
+
+                # Generate new course if not found
+                dump[department[0]]['courses'].append({
+                    "title": classData[6],
+                    "subj": classData[1],
+                    "crse": classData[0],
+                    "id": f"{classData[1]}-{classData[2]}",
+                    "sections": [addCourse(classData)]
+                })
 
 for i in (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'})):
-    insertClassDataIntoJson(i, dump)
+    insertClassDataIntoJson(i)
 
 # Generate the mod.rs file from the data
 

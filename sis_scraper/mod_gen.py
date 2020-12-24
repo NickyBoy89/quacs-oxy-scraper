@@ -180,7 +180,7 @@ def genmod(data, term):
         )
 
         for crn, conflict in conflicts.items():
-            print(f"{crn} {conflict}")
+            # print(f"{crn} {conflict}")
             rust_array = f"\t{crn}u32 => ["
             for i in range(0, BIT_VEC_SIZE * 64, 64):
                 if i != 0:
