@@ -7,7 +7,7 @@ import concurrent.futures
 if (len(sys.argv) > 1):
     term = sys.argv[1]
 else:
-    with open("../semesters/semesters.json") as semesters:
+    with open("semesters.json") as semesters:
         term = semesters.read().split("\n")[-2]
 
 termYears = [str(int(term[:4]) - 1), term[:4]] # Get the academic year based on the term code (ex: 2019-2020)
@@ -66,4 +66,4 @@ for i in tqdm(getMainElementsOfUrl(url)):
 
 # print(json.dumps(dump, indent=4, sort_keys=True))
 with open(f"catalog.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
-    json.dump(dump, outfile, sort_keys=True, indent=2)
+    json.dump(dump, outfile, sort_keys=False, indent=2)

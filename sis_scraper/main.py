@@ -14,7 +14,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 if (len(sys.argv) > 1):
     term = sys.argv[1]
 else:
-    with open("../semesters/semesters.json") as semesters:
+    with open("semesters.json") as semesters:
         term = semesters.read().split("\n")[-2]
 
 caching = False # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
