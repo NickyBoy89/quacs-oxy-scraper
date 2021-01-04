@@ -4,6 +4,10 @@ from tqdm import tqdm
 
 import concurrent.futures
 
+# Uses threads for ~4x speedup, but sometimes times out
+threaded = True
+threads = 2
+
 if (len(sys.argv) > 1):
     term = sys.argv[1]
 else:
@@ -53,7 +57,8 @@ dump = {}
 
 for i in tqdm(getMainElementsOfUrl(url)):
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    if (threaded):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
 
             future_to_url = {executor.submit(parseClassSite, f"https://oxy.smartcatalogiq.com{j['href']}"): j for j in getMainElementsOfUrl(f"https://oxy.smartcatalogiq.com{i['href']}")}
 
@@ -61,6 +66,11 @@ for i in tqdm(getMainElementsOfUrl(url)):
                 data = future.result()
 
                 dump[data[0]] = data[1] # Returns from tuple
+    else:
+        for j in getMainElementsOfUrl(f"https://oxy.smartcatalogiq.com{i['href']}"):
+            data = parseClassSite(f"https://oxy.smartcatalogiq.com{j['href']}")
+            dump[data[0]] = data[1]
+
 
 # print(parseClassSite('https://oxy.smartcatalogiq.com/2019-2020/Catalog/Course-Descriptions/ARAB-Arabic/200/ARAB-202'))
 
