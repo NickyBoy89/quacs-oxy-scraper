@@ -27,7 +27,7 @@ data = {
     '__VIEWSTATEGENERATOR': soup.find(id='__VIEWSTATEGENERATOR')['value'],
     '__VIEWSTATEENCRYPTED': soup.find(id='__VIEWSTATEENCRYPTED')['value'],
     '__EVENTVALIDATION': soup.find(id='__EVENTVALIDATION')['value'],
-    'tabContainer$TabPanel1$ddlSemesters': '202101',
+    'tabContainer$TabPanel1$ddlSemesters': '202102',
     'tabContainer$TabPanel1$ddlSubjects': '',
     'tabContainer$TabPanel1$txtCrseNum': '',
     'tabContainer$TabPanel2$ddlCoreTerms': '201601',
@@ -40,7 +40,7 @@ data = {
     'tabContainer$TabPanel4$ddlCRNTerms': '201601',
     'tabContainer$TabPanel4$txtCRN': '',
     'tabContainer$TabPanel5$ddlMajorsTerm': '201601',
-    'tabContainer$TabPanel5$ddlCatalogYear': '201601',
+    'tabContainer$TabPanel5$ddlCatalogYear': '201401',
     '__ASYNCPOST': 'true',
     'tabContainer$TabPanel1$btnGo': 'Go'
 }
@@ -48,6 +48,9 @@ data = {
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36'
 }
+
+# for key in data:
+#     print(f"{key}: {data[key]}")
 
 if caching:
     if path.exists('cached_response'):
