@@ -29,7 +29,7 @@ soup = BeautifulSoup(initialLoad.text, 'html.parser')
 
 # Extracts data from class page
 def getClassPageData(data, sessionData, threadNumber, verbose = False):
-    print(f"Started thread {threadNumber}")
+    # print(f"Started thread {threadNumber}")
 
     classButton = data.find('a')['href'][25:-5]
 
@@ -91,7 +91,7 @@ def getClassPageData(data, sessionData, threadNumber, verbose = False):
         print(f'Corequisites: {corequisitesPanel}')
         print(f'Restrictions: {restrictionsPanel}')
 
-    print(f"Finished thread {threadNumber}")
+    # print(f"Finished thread {threadNumber}")
 
     return([restrictionsPanel, corequisitesPanel, prereqsPanel, textKey])
 
