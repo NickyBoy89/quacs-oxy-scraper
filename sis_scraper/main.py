@@ -133,8 +133,9 @@ def getClassDataFromRow(data, storage):
     attribute = ''
     description = ''
     timingData = data.find('table', {'cellpadding': '2'}).findAll('td')
-    for day in timingData[1].text:
-        days.append(day)
+    if timingData[1].text != "Days-TBD":
+        for day in timingData[1].text:
+            days.append(day)
     timeslots = [{'days': days, 'timeStart': timeToMilitary(timingData[0].text, True), 'timeEnd': timeToMilitary(timingData[0].text, False), 'instructor': data.find('abbr')['title'], 'dateStart': '8/24', 'dateEnd': '11/20', 'location': ''}]
 
 
