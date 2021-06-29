@@ -37,7 +37,7 @@ def sem_add_courses(sem_dir: str, adj_list):
             )
 
             # Only add courses that have prereqs, to make the json smaller
-            if len(prereqs) == 0:
+            if prereqs == None || len(prereqs) == 0:
                 # This course has no prereqs,
                 # but may have had prereqs in the past,
                 # so try to delete the course.
