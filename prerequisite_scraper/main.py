@@ -224,7 +224,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
 
     future_to_url = {executor.submit(getClassPageData, i[1], session, i[0], verbose=False): i for i in enumerate(classRows)}
 
-    for future in concurrent.futures.as_completed(future_to_url):
+    for future in tqdm(concurrent.futures.as_completed(future_to_url)):
 
         data = future.result()
 
