@@ -25,8 +25,9 @@ def getMainElementsOfUrl(url):
 
     soup = BeautifulSoup(requests.get(url=url).text.encode('UTF-8'), 'lxml')
 
-    for i in soup.find('div', {'id': 'main'}).findNext('ul').findChildren('li'):
-        data.append(i.find('a'))
+    if soup.find('div', {'id': 'main'}) != None:
+        for i in soup.find('div', {'id': 'main'}).findNext('ul').findChildren('li'):
+            data.append(i.find('a'))
 
     return data
 
