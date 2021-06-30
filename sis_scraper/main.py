@@ -132,6 +132,8 @@ def getClassDataFromRow(data, storage):
     title = data.findAll('td')[2].text
     attribute = ''
     description = ''
+
+    timingData = []
     if data.find('table', {'cellpadding': '2'}) != None:
         timingData = data.find('table', {'cellpadding': '2'}).findAll('td')
         if timingData[1].text != "Days-TBD":

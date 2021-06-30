@@ -40,6 +40,8 @@ schools = []
 
 for i in getMainElementsOfUrl(url):
     school = i.text.split("-")
+    if len(school) < 2:
+        continue
     schools.append({
         "name": school[1].strip(),
         "depts": [
