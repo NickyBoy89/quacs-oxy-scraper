@@ -4,6 +4,41 @@ from tqdm import tqdm
 
 import concurrent.futures
 
+# Some default custom groupings that I thought were fitting to reduce the number of elements on the main page
+school_groupings = {
+    "Foreign Languages and Studies": [
+        "Arabic",
+        "French",
+        "German",
+        "Greek",
+        "Russian",
+        "Japanese Studies",
+        "Spanish",
+        "Latin",
+        "Latino/a and Latin American Studies",
+        "East Asian Studies",
+    ],
+    "Music": [
+        "Music",
+        "Music Applied Study",
+    ],
+    "Art": [
+        "Studio Art",
+        "Art History",
+    ],
+    "Sciences": [
+        "Biochemistry",
+        "Biology",
+        "Chemistry",
+    ],
+    "English": [
+        "English",
+        "Comparative Studies in Literature and Culture",
+        "Writing & Rhetoric",
+    ]
+}
+
+# For passing in a custom semester (such as through the generation script)
 if (len(sys.argv) > 1):
     term = sys.argv[1]
 else:
@@ -12,48 +47,84 @@ else:
 
 termYears = [str(int(term[:4]) - 1), term[:4]] # Get the academic year based on the term code (ex: 2019-2020)
 
+# The catalog changes format for years before 2018
 if (int(termYears[0]) < 2018):
     url = f'https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Courses'
 else:
     url = f'https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Course-Descriptions'
 
-print(url)
+print("Scraping " + url)
 
-def getMainElementsOfUrl(url):
-
+# Extract the school names and acronym from the page (ex: Mathematics and MATH)
+def getSchoolsFromUrl(url):
     data = []
-
     soup = BeautifulSoup(requests.get(url=url).text.encode('UTF-8'), 'lxml')
-
     if soup.find('div', {'id': 'main'}) != None:
         for i in soup.find('div', {'id': 'main'}).findNext('ul').findChildren('li'):
             data.append(i.find('a'))
-
     return data
-
-def addDepartment(department):
-    return {
-
-    }
 
 schools = []
 
-for i in getMainElementsOfUrl(url):
-    school = i.text.split("-")
-    if len(school) < 2:
+for rawSchool in getSchoolsFromUrl(url):
+    school = rawSchool.text.split("-") # Split out the Name from the acronym
+    if len(school) < 2: # If there is a parser error, skip the schoool
         continue
-    schools.append({
-        "name": school[1].strip(),
-        "depts": [
-            {
-                "code": school[0].strip(),
-                "name": school[1].strip()
-            }
-        ]
-    })
+    school_name = school[1].strip()
+    school_code = school[0].strip()
+
+    added = True
+
+    # If the name of the school is in the pre-generated groupings
+    for group_name in school_groupings:
+        # If the name of the school is in the group
+        if school_name in school_groupings[group_name]:
+            if len(schools) == 0:
+                schools.append({
+                    "name": group_name,
+                    "depts": [
+                        {
+                            "code": school_code,
+                            "name": school_name,
+                        }
+                    ]
+                })
+                break
+
+            # Look through all the generated schools to find the group that has already been generated
+            for generated_school in enumerate(schools):
+                if generated_school[1]["name"] == group_name:
+                    schools[generated_school[0]]["depts"].append({
+                        "code": school_code,
+                        "name": school_name,
+                    })
+                    added = True
+                    break
+                # If there is no pre-generated group found, generate it
+                schools.append({
+                    "name": group_name,
+                    "depts": [
+                        {
+                            "code": school_code,
+                            "name": school_name,
+                        }
+                    ]
+                })
+                added = True
+    # Add the school normally
+    if not added:
+        schools.append({
+            "name": school_name,
+            "depts": [
+                {
+                    "code": school_code,
+                    "name": school_name,
+                }
+            ]
+        })
 
 
-# print(schools)
+print(schools)
 
 with open(f"schools.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
     json.dump(schools, outfile, sort_keys=False, indent=2)
