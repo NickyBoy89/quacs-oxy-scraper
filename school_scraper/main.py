@@ -17,6 +17,7 @@ school_groupings = {
         "Latin",
         "Latino/a and Latin American Studies",
         "East Asian Studies",
+        "Chinese Studies",
     ],
     "Music": [
         "Music",
