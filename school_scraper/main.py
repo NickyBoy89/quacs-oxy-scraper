@@ -73,7 +73,7 @@ for rawSchool in getSchoolsFromUrl(url):
     school_name = school[1].strip()
     school_code = school[0].strip()
 
-    added = True
+    added = False
 
     # If the name of the school is in the pre-generated groupings
     for group_name in school_groupings:
@@ -89,6 +89,7 @@ for rawSchool in getSchoolsFromUrl(url):
                         }
                     ]
                 })
+                added = True
                 break
 
             # Look through all the generated schools to find the group that has already been generated
@@ -100,17 +101,19 @@ for rawSchool in getSchoolsFromUrl(url):
                     })
                     added = True
                     break
-                # If there is no pre-generated group found, generate it
-                schools.append({
-                    "name": group_name,
-                    "depts": [
-                        {
-                            "code": school_code,
-                            "name": school_name,
-                        }
-                    ]
-                })
-                added = True
+            if added:
+                break
+            # If there is no pre-generated group found, generate it
+            schools.append({
+                "name": group_name,
+                "depts": [
+                    {
+                        "code": school_code,
+                        "name": school_name,
+                    }
+                ]
+            })
+            added = True
     # Add the school normally
     if not added:
         schools.append({
@@ -122,6 +125,7 @@ for rawSchool in getSchoolsFromUrl(url):
                 }
             ]
         })
+    added = False
 
 
 print(schools)
