@@ -144,6 +144,16 @@ def getClassDataFromRow(data):
     # A list of all days that the class is on (ex: ['M', 'W', 'F'])
     days = []
 
+    timeslots = {
+        'days': days,
+        'instructor': 'Instructor-TBD',
+        'location': '',
+    }
+
+    # If there is a professor specified (not TBD)
+    if data.find('abbr') != None:
+        timeslots['instructor'] = data.find('abbr')['title']
+
     timingData = []
     if data.find('table', {'cellpadding': '2'}) != None:
         # Timing data gives the times in the first element, and the days in the second
@@ -151,16 +161,12 @@ def getClassDataFromRow(data):
         # If the days is TBD, keep it as an empty list
         if timingData[1].text != "Days-TBD":
             # Go over the days and add them to days (ex: MWF -> ['M', 'W', 'F'])
+            timeslots['timeStart'] = timeToMilitary(timingData[0].text, True)
+            timeslots['timeEnd'] = timeToMilitary(timingData[0].text, False)
             for day in timingData[1].text:
                 days.append(day)
 
-    timeslots = {
-        'days': days,
-        'timeStart': timeToMilitary(timingData[0].text, True),
-        'timeEnd': timeToMilitary(timingData[0].text, False),
-        'instructor': data.find('abbr')['title'],
-        'location': '',
-    }
+    
 
     if term[-2:] == "01": # Fall
         timeslots["dateStart"] = "8/24"
