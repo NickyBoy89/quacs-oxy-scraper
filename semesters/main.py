@@ -74,8 +74,9 @@ semesters = response.find("select", {"name": """tabContainer$TabPanel1$ddlSemest
 
 with open("semesters.json", "w") as schools:
     for semester in semesters:
+        print(semester)
         # Since oxy also uses the next near as the semester code (ex: 202201 for 2021 Fall Semester), subtract one hunred to decrement the year by one to get the correct information
-        schools.write(f'{int(semester["value"]) - 100}\n')
+        schools.write(f'{semester["value"]}\n')
         # Since all semesters will be available (even semesters that havent started yet) stop when the selected semester starts
         if semester.has_attr("selected"):
             break
