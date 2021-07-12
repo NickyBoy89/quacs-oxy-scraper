@@ -3,21 +3,20 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from os import path
 
-# Import the scrip to create the mod.rs
-
+# Import the script to create the mod.rs
 import mod_gen as modgen
 
 # Ignore the SSL errors
-
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-if (len(sys.argv) > 1):
+# You can manually specify a semester code for the script to use
+if len(sys.argv) > 1:
     term = sys.argv[1]
 else:
     with open("semesters.json") as semesters:
         term = semesters.read().split("\n")[-2]
 
-caching = False # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
+caching = True # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
 
 dump = [] # The array that all the json data is going to be put into
 
@@ -76,15 +75,15 @@ headers = {
 # Gets all the course information and turns it into a soup, plus some pseudo-caching logic to speed up development
 
 if caching:
-    if path.exists('responseData.txt'):
+    if path.exists('cached_response'):
         print('Found pre-existing response data, loading that in')
-        with open('responseData.txt', 'r') as responseData:
+        with open('cached_response', 'r') as responseData:
             request = responseData.read()
         response = BeautifulSoup(request, 'lxml')
     else:
         print('Did not find cached response. Creating it now for next iteration')
         request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
-        with open('responseData.txt', 'w') as responseData:
+        with open('cached_response', 'w') as responseData:
             responseData.write(request.text)
         response = BeautifulSoup(request.text, 'html.parser')
 else:
@@ -96,10 +95,6 @@ else:
 # Get the course catalog data to get some of the things that we have already generated
 with open('catalog.json') as catalogjson:
     catalogData = json.load(catalogjson)
-
-# quit()
-
-throwaway = {}
 
 def timeToMilitary(time, useStartTime):
     if "TBD" in time:
@@ -114,96 +109,139 @@ def timeToMilitary(time, useStartTime):
         offset = 1200
     return int("".join(time.strip().split(":"))[:4]) + offset
 
-def getClassDataFromRow(data, storage):
-    days = []
+# Parses the raw HTML from each class row
+def getClassDataFromRow(data):
+    # All the data is stored in tds nested in the html
+    tds = data.findAll('td')
 
-    courseName = data.findAll('td')[1].text
-    subj = re.match('([^\s]+)', data.findAll('td')[1].text).group()
-    crn = data.find('td').findChildren('a', recursive=False)[0].text
-    crse = re.findall('([^\s]+)', data.findAll('td')[1].text)[1]
-    sec = re.findall('([^\s]+)', data.findAll('td')[1].text)[2]
+    # Get the name of the course (ex: WRD 301 0), which contains the subject, the course code, and section number
+    courseName = tds[1].text
+    # Split the name into its three parts
+    nameParts = courseName.split(" ")
+    subj = nameParts[0] # Subject (ex: WRD)
+    crse = nameParts[1] # Course code (ex: 301)
+    sec = nameParts[2] # Section number (ex: 0)
+    crn = tds[0].findChildren('a', recursive=False)[0].text
+
+    # Get enrollment numbers
+    maxSeats = tds[-5].text
+    enrl = tds[-4].text
+
+    # If section number is one digit, then append a zero to the front
+    # Ex: 1 -> 01
     try:
         if int(sec) < 10:
             sec = '0' + sec
     except:
         pass
-    credMin = data.findAll('td')[3].text
-    credMax = data.findAll('td')[3].text
-    title = data.findAll('td')[2].text
+    credMin = tds[3].text
+    credMax = tds[3].text
+    title = tds[2].text
+    # No attribute or description
     attribute = ''
     description = ''
 
+    # A list of all days that the class is on (ex: ['M', 'W', 'F'])
+    days = []
+
     timingData = []
     if data.find('table', {'cellpadding': '2'}) != None:
+        # Timing data gives the times in the first element, and the days in the second
         timingData = data.find('table', {'cellpadding': '2'}).findAll('td')
+        # If the days is TBD, keep it as an empty list
         if timingData[1].text != "Days-TBD":
+            # Go over the days and add them to days (ex: MWF -> ['M', 'W', 'F'])
             for day in timingData[1].text:
                 days.append(day)
-    timeslots = [{'days': days, 'timeStart': timeToMilitary(timingData[0].text, True), 'timeEnd': timeToMilitary(timingData[0].text, False), 'instructor': data.find('abbr')['title'], 'dateStart': '8/24', 'dateEnd': '11/20', 'location': ''}]
 
-
-    storage[courseName] = {}
-    storage[courseName]['crn'] = int(crn) # Course crn (ex: 1001)
-    storage[courseName]['subj'] = subj # Course number (ex: AMST)
-    storage[courseName]['crse'] = crse # Course number (ex: 201)
-    storage[courseName]['title'] = title # Course name (ex: Introduction to American Studies)
-    storage[courseName]['description'] = description # Description
-
-    return([crn, subj, crse, sec, credMin, credMax, title, attribute, timeslots])
-
-def addCourse(course):
-    return {
-        "crn": int(course[0]),
-        "subj": course[1],
-        "crse": course[2],
-        "sec": course[2],
-        "credMin": int(course[4]),
-        "credMax": int(course[5]),
-        "title": course[6],
-        "attribute": course[7],
-        "timeslots": course[8]
+    timeslots = {
+        'days': days,
+        'timeStart': timeToMilitary(timingData[0].text, True),
+        'timeEnd': timeToMilitary(timingData[0].text, False),
+        'instructor': data.find('abbr')['title'],
+        'location': '',
     }
 
+    if term[-2:] == "01": # Fall
+        timeslots["dateStart"] = "8/24"
+        timeslots["dateEnd"] = "11/20"
+    elif term[-2:] == "02": # Spring
+        timeslots["dateStart"] = "1/19"
+        timeslots["dateEnd"] = "4/27"
+    elif term[-2:] == "03": # Summer
+        timeslots["dateStart"] = "5/1"
+        timeslots["dateEnd"] = "8/6"
+
+    return {
+        "crn": crn,
+        "subj": subj,
+        "crse": crse,
+        "sec": sec,
+        "credMin": credMin,
+        "credMax": credMax,
+        "maxSeats": maxSeats,
+        "enrolled": enrl,
+        "title": title,
+        "attribute": attribute,
+        "timeslots": timeslots,
+    }
+
+# Formats the parsed class row data into the final format
+def addCourse(course):
+    return {
+        "crn": int(course["crn"]),
+        "subj": course["subj"],
+        "crse": course["crse"],
+        "sec": course["sec"],
+        "credMin": int(course["credMin"]),
+        "credMax": int(course["credMax"]),
+        "title": course["title"],
+        # Capacity of the course
+        "cap": int(course["maxSeats"]),
+        # Seats accounted for
+        "act": int(course["enrolled"]),
+        # Remaining seats (capacity - act) if there isn't any overassignment
+        "rem": int(course["maxSeats"]) - int(course["enrolled"]),
+        "attribute": course["attribute"],
+        "timeslots": [course["timeslots"]]
+    }
+
+# Puts the raw data from each row into json format
 def insertClassDataIntoJson(rowData):
-
-    classData = getClassDataFromRow(rowData, throwaway)
-    # print(classData)
-
+    classData = getClassDataFromRow(rowData)
+    # Go through the generated JSON to find the department to add the course to
     for department in enumerate(dump):
-
-        # print(department[1])
-
         # Test if class is in current department
-        if (department[1]['code'] == classData[1]):
-
+        if (department[1]["code"] == classData["subj"]):
             # True if course is found in the courses
             courseFound = False
 
-            # Tests to see if the course is already in the courses
+            # Tests to see if the course already exists, if it does, insert the class as a section
             for course in enumerate(department[1]["courses"]):
-                if (course[1]["title"] == classData[6]):
-
+                if (course[1]["title"] == classData["title"]):
                     courseFound = True
-
                     dump[department[0]]["courses"][course[0]]["sections"].append(addCourse(classData))
 
-            if (not courseFound):
-
+            if not courseFound:
                 # Generate new course if not found
                 dump[department[0]]['courses'].append({
-                    "title": classData[6],
-                    "subj": classData[1],
-                    "crse": classData[0],
-                    "id": f"{classData[1]}-{classData[2]}",
+                    "title": classData["title"],
+                    "subj": classData["subj"],
+                    "crse": classData["crn"],
+                    "id": classData["subj"] + "-" + classData["crse"],
                     "sections": [addCourse(classData)]
                 })
 
+print("Going through courses")
+# Go through all the rows in the response and load them into JSON
 for i in (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'})):
     insertClassDataIntoJson(i)
+print("Done going through courses")
 
 # Generate the mod.rs file from the data
-
+print("Generating mod.rs")
 modgen.genmod(dump, None)
+print("Done generating mod.rs")
 
 # Saving data into json file
 # print(json.dumps(dump, indent=4, sort_keys=True))
