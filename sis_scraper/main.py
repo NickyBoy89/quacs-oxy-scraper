@@ -16,7 +16,7 @@ else:
     with open("semesters.json") as semesters:
         term = semesters.read().split("\n")[-2]
 
-caching = True # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
+caching = False # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
 
 dump = [] # The array that all the json data is going to be put into
 
