@@ -19,22 +19,34 @@ school_groupings = {
         "East Asian Studies",
         "Chinese Studies",
     ],
-    "Music": [
-        "Music",
-        "Music Applied Study",
-    ],
-    "Art": [
+    "Humanities, Arts, and Social Sciences": [
         "Studio Art",
         "Art History",
+        "Theater",
+        "Music",
+        "Music Applied Study",
+        "Comparative Studies in Literature and Culture",
+        "Economics",
+        "History",
+        "Philosophy",
+        "Sociology",
+        "Urban and Environmental Policy",
+        "Education",
+        "Religion",
+        "Public Health"
     ],
     "Sciences": [
         "Biochemistry",
         "Biology",
         "Chemistry",
+        "Geology",
+        "Cognitive Science",
+        "Mathematics",
+        "Physics",
+        "Psychology",
     ],
-    "English": [
+    "Literature": [
         "English",
-        "Comparative Studies in Literature and Culture",
         "Writing & Rhetoric",
     ]
 }
