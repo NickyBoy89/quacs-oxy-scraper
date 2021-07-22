@@ -22,6 +22,7 @@ school_groupings = {
     "Humanities, Arts, and Social Sciences": [
         "Studio Art",
         "Art History",
+        "Media Arts and Culture",
         "Theater",
         "Music",
         "Music Applied Study",
@@ -30,10 +31,18 @@ school_groupings = {
         "History",
         "Philosophy",
         "Sociology",
-        "Urban and Environmental Policy",
         "Education",
-        "Religion",
-        "Public Health"
+        "Religious Studies",
+        "Linguistics",
+    ],
+    "Politics and Public Relations": [
+        "Critical Theory and Social Justice",
+        "Diplomacy & World Affairs",
+        "Politics",
+    ],
+    "Social Affairs": [
+        "Urban & Environmental Policy",
+        "Public Health",
     ],
     "Sciences": [
         "Biochemistry",
@@ -44,6 +53,8 @@ school_groupings = {
         "Mathematics",
         "Physics",
         "Psychology",
+        "Computer Science",
+        "Kinesiology",
     ],
     "Literature": [
         "English",
