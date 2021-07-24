@@ -36,13 +36,13 @@ school_groupings = {
         "Linguistics",
     ],
     "Politics and Public Relations": [
-        "Critical Theory and Social Justice",
         "Diplomacy & World Affairs",
         "Politics",
     ],
     "Social Affairs": [
         "Urban & Environmental Policy",
         "Public Health",
+        "Critical Theory and Social Justice",
     ],
     "Sciences": [
         "Biochemistry",
