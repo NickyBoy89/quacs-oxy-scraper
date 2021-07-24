@@ -233,7 +233,7 @@ def insertClassDataIntoJson(rowData):
                 dump[department[0]]['courses'].append({
                     "title": classData["title"],
                     "subj": classData["subj"],
-                    "crse": classData["crn"],
+                    "crse": classData["crse"],
                     "id": classData["subj"] + "-" + classData["crse"],
                     "sections": [addCourse(classData)]
                 })
