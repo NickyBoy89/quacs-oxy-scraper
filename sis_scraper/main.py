@@ -5,7 +5,7 @@ from tqdm import tqdm
 import mod_gen as modgen
 
 # Import the scripts that talk with course counts
-sys.path.insert(1, ".")
+sys.path.insert(1, "quacs-oxy-scraper")
 from counts import counts
 
 # You can manually specify a semester code for the script to use

@@ -5,7 +5,7 @@ from os import path
 import urllib3
 
 # Import counts
-sys.path.insert(1, ".")
+sys.path.insert(1, "quacs-oxy-scraper")
 from counts import counts
 
 with open("semesters.json", "w") as schools:
