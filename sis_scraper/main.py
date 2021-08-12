@@ -1,13 +1,12 @@
-import requests, json, re, urllib3, sys
-from bs4 import BeautifulSoup
+import requests, json, re, sys
 from tqdm import tqdm
-from os import path
 
 # Import the script to create the mod.rs
 import mod_gen as modgen
 
-# Ignore the SSL errors
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# Import the scripts that talk with course counts
+sys.path.insert(1, ".")
+from counts import counts
 
 # You can manually specify a semester code for the script to use
 if len(sys.argv) > 1:
@@ -16,81 +15,14 @@ else:
     with open("semesters.json") as semesters:
         term = semesters.read().split("\n")[-2]
 
-caching = False # Set this to true to drastically speed up requests for local development (NOTE: Must be run once to be cached)
-
 dump = [] # The array that all the json data is going to be put into
 
-session = requests.Session() # Initialize the browser session
-
-# Load the homepage and get its data
-print("Starting request")
-initialLoad = session.get('https://counts.oxy.edu/public/default.aspx', verify=False)
-soup = BeautifulSoup(initialLoad.text, 'html.parser')
-print("Finished request")
+# Load all the subjects in to the array
+for subject in counts.subjects():
+    dump.append({'name': subject.text, 'code': subject['value'], 'courses': []})
 
 # Maps the course code to the course name (ex: AMST is mapped to American Studies)
 codeMapping = {}
-
-# Populate the dump variable with the departments
-for i in soup.find(id='tabContainer_TabPanel3_ddlAdvSubj').findAll('option'):
-    codeMapping[i['value']] = i.text
-    dump.append({'name': i.text, 'code': i['value'], 'courses': []})
-
-# Breakpoint before long request
-# quit()
-
-data = {
-    'ScriptManager2': """pageUpdatePanel|tabContainer$TabPanel1$btnGo""",
-    'tabContainer_ClientState': soup.find(id='tabContainer_ClientState')['value'],
-    '__EVENTTARGET': '',
-    '__EVENTARGUMENT': '',
-    '__LASTFOCUS': '',
-    '__VIEWSTATE': soup.find(id='__VIEWSTATE')['value'],
-    '__VIEWSTATEGENERATOR': soup.find(id='__VIEWSTATEGENERATOR')['value'],
-    '__VIEWSTATEENCRYPTED': soup.find(id='__VIEWSTATEENCRYPTED')['value'],
-    '__EVENTVALIDATION': soup.find(id='__EVENTVALIDATION')['value'],
-    'tabContainer$TabPanel1$ddlSemesters': term,
-    'tabContainer$TabPanel1$ddlSubjects': '',
-    'tabContainer$TabPanel1$txtCrseNum': '',
-    'tabContainer$TabPanel2$ddlCoreTerms': '201601',
-    'tabContainer$TabPanel2$ddlCoreAreas': 'CPFA',
-    'tabContainer$TabPanel2$ddlCoreSubj': 'AMST',
-    'tabContainer$TabPanel3$ddlAdvTerms': '201601',
-    'tabContainer$TabPanel3$ddlAdvSubj': 'AMST',
-    'tabContainer$TabPanel3$ddlAdvTimes': '07000755',
-    'tabContainer$TabPanel3$ddlAdvDays': 'u',
-    'tabContainer$TabPanel4$ddlCRNTerms': '201601',
-    'tabContainer$TabPanel4$txtCRN': '',
-    'tabContainer$TabPanel5$ddlMajorsTerm': '201601',
-    'tabContainer$TabPanel5$ddlCatalogYear': '201601',
-    '__ASYNCPOST': 'true',
-    'tabContainer$TabPanel1$btnGo': 'Go'
-}
-
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36'
-}
-
-
-# Gets all the course information and turns it into a soup, plus some pseudo-caching logic to speed up development
-
-if caching:
-    if path.exists('cached_response'):
-        print('Found pre-existing response data, loading that in')
-        with open('cached_response', 'r') as responseData:
-            request = responseData.read()
-        response = BeautifulSoup(request, 'lxml')
-    else:
-        print('Did not find cached response. Creating it now for next iteration')
-        request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
-        with open('cached_response', 'w') as responseData:
-            responseData.write(request.text)
-        response = BeautifulSoup(request.text, 'html.parser')
-else:
-    print("Starting request for all classes to server. This will take ~15 seconds to complete")
-    request = session.post("https://counts.oxy.edu/public/default.aspx", data=data, headers=headers, verify=False)
-    response = BeautifulSoup(request.text, 'html.parser')
-    print("Finished getting response")
 
 # Get the course catalog data to get some of the things that we have already generated
 with open('catalog.json') as catalogjson:
@@ -166,7 +98,7 @@ def getClassDataFromRow(data):
             for day in timingData[1].text:
                 days.append(day)
 
-    
+
 
     if term[-2:] == "01": # Fall
         timeslots["dateStart"] = "8/24"
@@ -237,6 +169,8 @@ def insertClassDataIntoJson(rowData):
                     "id": classData["subj"] + "-" + classData["crse"],
                     "sections": [addCourse(classData)]
                 })
+
+response = counts.allCourses(True, term)
 
 print("Going through courses")
 # Go through all the rows in the response and load them into JSON
