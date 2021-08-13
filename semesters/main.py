@@ -5,7 +5,7 @@ from os import path
 import urllib3
 
 # Import counts
-from counts import counts
+import counts
 
 with open("semesters.json", "w") as schools:
     # Write the semesters to the file

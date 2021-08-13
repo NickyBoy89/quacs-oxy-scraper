@@ -5,7 +5,7 @@ from tqdm import tqdm
 import mod_gen as modgen
 
 # Import the scripts that talk with course counts
-from counts import counts
+import counts
 
 # You can manually specify a semester code for the script to use
 if len(sys.argv) > 1:
