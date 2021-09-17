@@ -7,7 +7,7 @@ This was written both before and after I took Data Structures at my school, so a
 # Requirements
 
 1. Python 3
-1. The python pachages `requests bs4 lxml tqdm json re`
+1. The python packages `requests bs4 lxml tqdm json re`
 
 # How the data comes together
 
@@ -25,4 +25,4 @@ This was written both before and after I took Data Structures at my school, so a
 
 *NOTE:* Please note that some of the functions take a long time to run (>30s) because of the speed of the servers that they scrape data off of
 
-The `prerequisite_scraper` is the worst offender, having to query the server each for ~700+ classes, and takes around 20 minutes total
+The `prerequisite_scraper` is the worst offender, having to query the server each for ~700+ classes, and takes around 20 minutes total (~7min on a nice internet connection)

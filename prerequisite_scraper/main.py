@@ -8,6 +8,9 @@ import concurrent.futures
 
 import prereq_parser as prereq
 
+# The number of workers to use when making the requests to the server
+concurrentWorkers = 4
+
 # Ignore the SSL errors
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -70,6 +73,7 @@ def getClassPageData(data, sessionData, threadNumber, verbose = False):
     restrictionsPanel = ''
     corequisitesPanel = ''
     prereqsPanel = ''
+    reservedPanel = ''
 
 
     if classSoup.find(id='restrictionsPanel') != None:
@@ -83,6 +87,10 @@ def getClassPageData(data, sessionData, threadNumber, verbose = False):
     if classSoup.find(id='prereqsPanel') != None:
         prereqsPanel = parsePrerequisites(classSoup.find(id='prereqsPanel').findAll('tr')[1:])
 
+    if classSoup.find(id='resvDetailsPanel') != None:
+        reservedPanel = parseReservedSeats(classSoup.find(id='resvDetailsPanel').findAll('tr')[1:])
+
+
     if data.find('a') != None:
         textKey = data.find('a').text
 
@@ -93,7 +101,13 @@ def getClassPageData(data, sessionData, threadNumber, verbose = False):
 
     # print(f"Finished thread {threadNumber}")
 
-    return([restrictionsPanel, corequisitesPanel, prereqsPanel, textKey])
+    return {
+            "restrictions": restrictionsPanel,
+            "coreqs": corequisitesPanel,
+            "prereqs": prereqsPanel,
+            "reserved": reservedPanel,
+            "textKey": textKey,
+            }
 
 
 def joinFirstTwoWordsWithDash(words):
@@ -120,6 +134,22 @@ def getPrereqRestriction(listText):
     if 'Frosh' in listText:
         levels.append('Frosh')
     return(levels)
+
+# Parses a list of rows from the reserved seats section and returns a list of dictionaries with the corresponding mappings:
+# "reservedFor" - who the class is reserved for, "max" - Number of seats reserved, and "open" - the number of reserved seats left
+def parseReservedSeats(reservedSeatRows):
+    parsedReservations = []
+    for row in reservedSeatRows:
+        currentReservation = {}
+        for index, item in enumerate(row.findAll('td')):
+            if index == 0: # First item is reservedFor
+                currentReservation["reservedFor"] = item.text
+            elif index == 1:
+                currentReservation["max"] = int(item.text)
+            elif index == 2:
+                currentReservation["open"] = int(item.text)
+        parsedReservations.append(currentReservation)
+    return parsedReservations
 
 # Parenthesies stripping logic
 def parsePrerequisites(prereqList):
@@ -151,14 +181,16 @@ def parsePrerequisites(prereqList):
 def parseJson(data):
     finalRestrictions = {}
 
-    if len(data[0]) > 0:
+    if len(data["restrictions"]) > 0:
         finalRestrictions['restrictions'] = {}
-        finalRestrictions['restrictions']['classification'] = getLevelRestriction(data[0])
-    if len(data[1]) > 0:
+        finalRestrictions['restrictions']['classification'] = getLevelRestriction(data["restrictions"])
+    if len(data["coreqs"]) > 0:
         finalRestrictions['corequisites'] = {}
-        finalRestrictions['corequisites']['cross_list_courses'] = data[1]
-    if len(data[2]) > 0:
-        finalRestrictions['prerequisites'] = prereq.parse(data[2])
+        finalRestrictions['corequisites']['cross_list_courses'] = data["coreqs"]
+    if len(data["prereqs"]) > 0:
+        finalRestrictions['prerequisites'] = prereq.parse(data["prereqs"])
+    if len(data["reserved"]) > 0:
+        finalRestrictions["reserved"] = data["reserved"]
 
     # print(finalRestrictions)
     return(finalRestrictions)
@@ -220,15 +252,18 @@ start = time.time()
 classRows = response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'})
 
 # Multithreading
-with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-
-    future_to_url = {executor.submit(getClassPageData, i[1], session, i[0], verbose=False): i for i in enumerate(classRows)}
-
-    for future in tqdm(concurrent.futures.as_completed(future_to_url)):
-
-        data = future.result()
-
-        dump[data[3]] = parseJson(data)
+if concurrentWorkers <= 1:
+    for ind, i in tqdm(enumerate(classRows)):
+        data = getClassPageData(i, session, ind)
+        dump[data["textKey"]] = parseJson(data)
+else:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=concurrentWorkers) as executor:
+        # Submit all the work to the thread pool
+        future_to_url = {executor.submit(getClassPageData, i[1], session, i[0], verbose=False): i for i in enumerate(classRows)}
+        # Collect the results
+        for future in tqdm(concurrent.futures.as_completed(future_to_url)):
+            data = future.result()
+            dump[data["textKey"]] = parseJson(data)
 
 # Saving data into json file
 # print(json.dumps(dump, indent=4, sort_keys=True))
