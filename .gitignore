@@ -2,3 +2,6 @@ quacs-data/
 scraper/
 __pycache__/
 example
+
+#Generated files
+*.json

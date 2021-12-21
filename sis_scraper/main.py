@@ -7,6 +7,9 @@ import mod_gen as modgen
 # Import the scripts that talk with course counts
 import counts
 
+# Cache the http response (for local development)
+caching = False
+
 # You can manually specify a semester code for the script to use
 if len(sys.argv) > 1:
     term = sys.argv[1]
@@ -97,8 +100,7 @@ def getClassDataFromRow(data):
             for day in timingData[1].text:
                 days.append(day)
 
-
-
+    # Hardcoded semester start and end dates
     if term[-2:] == "01": # Fall
         timeslots["dateStart"] = "8/24"
         timeslots["dateEnd"] = "11/20"
@@ -147,29 +149,23 @@ def addCourse(course):
 def insertClassDataIntoJson(rowData):
     classData = getClassDataFromRow(rowData)
     # Go through the generated JSON to find the department to add the course to
-    for department in enumerate(dump):
-        # Test if class is in current department
-        if (department[1]["code"] == classData["subj"]):
-            # True if course is found in the courses
-            courseFound = False
+    for di, department in enumerate(dump):
+        if department["code"] == classData["subj"]:
+            # If the course is already there, add it to the list of sections
+            for ci, course in enumerate(department["courses"]):
+                if course["crse"] == classData["crse"]:
+                    dump[di]["courses"][ci]["sections"].append(addCourse(classData))
+                    return
+            # If there was no previous sections found, then add it as the first section
+            dump[di]['courses'].append({
+                "title": classData["title"],
+                "subj": classData["subj"],
+                "crse": classData["crse"],
+                "id": f"{classData['subj']}-{classData['crse']}",
+                "sections": [addCourse(classData)]
+            })
 
-            # Tests to see if the course already exists, if it does, insert the class as a section
-            for course in enumerate(department[1]["courses"]):
-                if (course[1]["title"] == classData["title"]):
-                    courseFound = True
-                    dump[department[0]]["courses"][course[0]]["sections"].append(addCourse(classData))
-
-            if not courseFound:
-                # Generate new course if not found
-                dump[department[0]]['courses'].append({
-                    "title": classData["title"],
-                    "subj": classData["subj"],
-                    "crse": classData["crse"],
-                    "id": classData["subj"] + "-" + classData["crse"],
-                    "sections": [addCourse(classData)]
-                })
-
-response = counts.allCourses(True, term)
+response = counts.allCourses(caching, term)
 
 print("Going through courses")
 # Go through all the rows in the response and load them into JSON
