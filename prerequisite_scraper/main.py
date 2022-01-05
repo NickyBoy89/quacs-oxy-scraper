@@ -51,7 +51,7 @@ def getClassPageData(data, sessionData, threadNumber, verbose = False):
         'tabContainer$TabPanel4$ddlCRNTerms': '201601',
         'tabContainer$TabPanel4$txtCRN': '',
         'tabContainer$TabPanel5$ddlMajorsTerm': '201601',
-        'tabContainer$TabPanel5$ddlCatalogYear': '201601',
+        'tabContainer$TabPanel5$ddlCatalogYear': '200801',
         '__EVENTTARGET': classButton,
         '__EVENTARGUMENT': '',
         '__LASTFOCUS': '',
