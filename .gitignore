@@ -5,3 +5,4 @@ example
 
 #Generated files
 *.json
+mod.rs
