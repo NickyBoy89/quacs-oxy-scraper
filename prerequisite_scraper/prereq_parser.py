@@ -1,20 +1,73 @@
 import re, json
 
-def parse(data, verbose = False):
+from typing import List, Dict
 
-    # Parse parenthesies and clean up the data
+
+def parse(data: List[str], verbose=False) -> Dict[str, str]:
+    """
+    parse takes in a list of the raw prerequisites
+    Ex: ['COURSE', 'or COURSE  NUM`, 'or COURSE  NUM']
+    And returns a dict representing the entire dependency tree
+    """
+
+    # Clean up the data and parse it into a list of lists
     data = parseParenthesies(data)
-
-    if (verbose): # Setting this to true will fail, because the function modifies the underlying array
-        print(addGroupedElements(data))
 
     return addGroupedElements(data)
 
-# Returns already formed JSON
-def addGroupedElements(elements):
 
-    # print(elements)
+# Parses a list of prerequisites in the form:
+# ['CLASS', 'or CLASS', 'and CLASS']
+def parseParenthesies(prerequisites: List[str]) -> List[str]:
+    """
+    parseParenthesies takes in a list of prerequisites of the form
+    Ex: [' CLASS', 'or CLASS NUM']
+    And returns a list of the parsed prereqs
+    """
+    # The current balance of the parenthesies, negative means open parenthesies
+    # and zero means that everything is balanced
+    balance = 0
 
+    result = []  # Create a list to copy all the data into
+
+    for prereq in prerequisites:
+        # Remove all double spaces from each prerequisite
+        prereq = " ".join(list(filter(None, prereq.split())))
+        if balance < -1:
+            raise Exception("More than one level of parenthesies in prerequisites")
+        if "(" in prereq:
+            # If there is parenthesies, adjust the balance, and add the element after the parenthesies
+            balance -= 1
+
+            result.append(prereq[prereq.index("(") + 1 :])
+        elif ")" in prereq:
+            balance += 1
+
+            # On closing parenthesies, append it to the last element's list
+            result[-1].append(prereq[: prereq.index(")")])
+        elif balance < 0:
+            # If there is an open parenthesies, add it to the last element's list
+            result[-1].append(prereq)
+        else:
+            result.append(prereq)
+
+    return result
+
+
+def addGroupedElements(elements: List[str]) -> Dict[str, str]:
+    """
+    addGroupedElements takes in the list of prerequisites, and outputs everthing
+    as a dictionary with the correct arguments
+
+    Ex: ['COURSE', 'or COURSE  NUM'] ->
+    {
+        "type": "or",
+        "nested": [
+            {"type": "course", "course": "COURSE"},
+            {"type": "course", "course": "COURSE  NUM"}
+                ]
+    }
+    """
     lockedOperator = None
 
     logicOperators = getOperators(elements)
@@ -26,68 +79,63 @@ def addGroupedElements(elements):
     for element in enumerate(reversed(elements)):
         normIndex = (len(elements) - 1) - element[0]
 
-        if (isinstance(element[1], list)):
+        if isinstance(element[1], list):
 
             # Modified the logic operators on the beginning of lists
             logicOperators[normIndex][0] = logicOperators[normIndex][1]
-            element[1][0] = f"{logicOperators[normIndex][1]} " + stripOperator(element[1][0])
+            element[1][0] = f"{logicOperators[normIndex][1]} " + stripOperator(
+                element[1][0]
+            )
 
             result["nested"].insert(0, addGroupedElements(element[1]))
 
-        elif (logicOperators[normIndex] == baseOperator):
-            result["nested"].insert(0, addCourse(stripOperator(element[1])))
+        elif logicOperators[normIndex] == baseOperator:
+            result["nested"].insert(
+                0, {"type": "course", "course": stripOperator(element[1])}
+            )
         else:
-            if (logicOperators[normIndex] == lockedOperator):
+            if logicOperators[normIndex] == lockedOperator:
                 continue
 
             lockedOperator = logicOperators[normIndex]
 
             lockedOperator = logicOperators[normIndex]
-            result["nested"].append(addGroupedElements(elements[:normIndex + 1]))
+            result["nested"].append(addGroupedElements(elements[: normIndex + 1]))
 
     return result
 
-def addCourse(courseName):
-    return {
-        "type": "course",
-        "course": courseName
-    }
 
-def stripOperator(term):
-    if ("and" in term or "or" in term):
-        return re.search(""" (.*)""", term.strip()).group(0).strip()
-    else:
-        return term
+def stripOperator(term: str) -> str:
+    if "and" in term or "or" in term:
+        return " ".join(term.split()[1:])
+    return term
 
-def addOperator(name, courses = None):
 
-    result = {
-        "type": name,
-        "nested": []
-    }
+def addOperator(name, courses=None):
+    result = {"type": name, "nested": []}
 
     if courses != None:
         for course in courses:
             result["nested"].append(course)
     return result
 
-def getOperators(data):
 
+def getOperators(data):
     logicOperators = []
 
     carryoverTerm = False
 
     for term in enumerate(data):
-        if (isinstance(term[1], list)):
+        if isinstance(term[1], list):
             logicOperators.append(getOperators(term[1]))
-        elif ("and" in term[1]):
+        elif "and" in term[1]:
             logicOperators.append("and")
-            if (carryoverTerm):
+            if carryoverTerm:
                 logicOperators[term[0] - 1] = "and"
                 carryoverTerm = False
-        elif ("or" in term[1]):
+        elif "or" in term[1]:
             logicOperators.append("or")
-            if (carryoverTerm):
+            if carryoverTerm:
                 logicOperators[term[0] - 1] = "or"
                 carryoverTerm = False
         else:
@@ -96,55 +144,23 @@ def getOperators(data):
 
     return logicOperators
 
-def getClassRestrictions(text):
 
+def getClassRestrictions(text):
     grades = []
 
-    if 'Graduate' in text:
-        grades.append('Graduate')
-    if 'Senior' in text:
-        grades.append('Senior')
-    if 'Junior' in text:
-        grades.append('Junior')
-    if 'Frosh' in text:
-        grades.append('Frosh')
+    if "Graduate" in text:
+        grades.append("Graduate")
+    if "Senior" in text:
+        grades.append("Senior")
+    if "Junior" in text:
+        grades.append("Junior")
+    if "Frosh" in text:
+        grades.append("Frosh")
 
-    return(grades)
+    return grades
 
-def groupStatements(data):
-    result = []
-
-    for state in enumerate(data):
-        pass
 
 def getFirstElement(element):
-    if (isinstance(element, list)):
+    if isinstance(element, list):
         return getFirstElement(element[0])
-    else:
-        return element
-
-def parseParenthesies(data):
-
-    nestedLevel = 0
-
-    result = [] # Create a list to copy all the data into
-
-    for req in enumerate(data):
-
-        if (nestedLevel > 1):
-            raise ValueError("More than one level of parenthesies detected. If this message appears, change the function to add this capability")
-
-        if ("(" in req[1]):
-            nestedLevel += 1
-
-            result.append([re.search('\(.+', req[1]).group(0)[1:].strip()])
-        elif (")" in req[1]):
-            nestedLevel -= 1
-
-            result[-1].append(req[1].strip()[:-1])
-        elif (nestedLevel > 0):
-            result[-1].append(req[1].strip())
-        else:
-            result.append(req[1].strip())
-
-    return result
+    return element
