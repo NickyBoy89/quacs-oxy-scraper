@@ -102,6 +102,10 @@ def addGroupedElements(elements: List[str]) -> Dict[str, str]:
             lockedOperator = logicOperators[normIndex]
             result["nested"].append(addGroupedElements(elements[: normIndex + 1]))
 
+    # If a class has only one prerequisite, it returns the one course directly
+    if result["type"] == "":
+        return result["nested"][0]
+
     return result
 
 
