@@ -117,7 +117,7 @@ for majorURL in tqdm(getMajorsFromHomepage(url).values()):
         courseMajor, courseCode, *courseName = fullClassName.split(" ")
 
         metadata["subj"] = courseMajor
-        metadata["crse"] = courseCode
+        metadata["crse"] = int(courseCode)
         # This leaves courseName as a list of all the other words in the course's
         # name, so we want to put them all together
         metadata["name"] = " ".join(courseName)
