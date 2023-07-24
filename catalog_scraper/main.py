@@ -38,6 +38,8 @@ termYears = [
 # The format for the catalogs is different for years older than 2018
 if int(termYears[0]) < 2018:
     url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Courses"
+elif int(termYears[0]) >= 2023:
+    url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/catalog/course-descriptions"
 else:
     url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Course-Descriptions"
 
