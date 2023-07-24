@@ -3,7 +3,52 @@ import json
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Self
+
+
+class CatalogUrl:
+    root_url: str
+    language: str = "en"
+    current_year: int
+    suffix: str = ""
+
+    def __str__(self) -> str:
+        return f"CatalogUrl {{ root_url: {self.root_url}, language: {self.language}, current_year: {self.current_year}, suffix: {self.suffix} }}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
+    def format(self) -> str:
+        suffix = ""
+
+        if self.current_year < 2018:
+            suffix = "Catalog/Courses"
+        elif self.current_year < 2023:
+            suffix = "Catalog/Course-Descriptions"
+        else:
+            suffix = "catalog/course-descriptions"
+
+        if self.suffix != "":
+            suffix += "/" + self.suffix
+
+        if self.current_year >= 2023:
+            suffix = suffix.lower()
+
+        # The year always starts with the previous year
+        return f"{self.root_url}/{self.language}/{self.current_year - 1}-{self.current_year}/{suffix}"
+
+    def parse_relative_url(self, url: str) -> Self:
+        _, language, term_years, _, _, *parts = url.split("/")
+
+        parsed_url = CatalogUrl()
+        parsed_url.root_url = self.root_url
+        parsed_url.language = language
+        parsed_url.current_year = int(term_years.split("-")[1])
+
+        parsed_url.suffix = "/".join(parts)
+
+        return parsed_url
+
 
 """
 The `catalog_scraper` goes through the course catalog, and returns data about
@@ -26,27 +71,22 @@ if len(sys.argv) > 1:
     term = sys.argv[1]
 else:
     with open("semesters.json") as semesters:
+        # Get the last semester number, but remove the newline
         term = semesters.read().split("\n")[-2]
 
-catalogRoot = "https://oxy.smartcatalogiq.com"
+current_catalog_url = CatalogUrl()
+current_catalog_url.language = "en"
+current_catalog_url.root_url = "https://oxy.smartcatalogiq.com"
 
-termYears = [
-    str(int(term[:4]) - 1),
-    term[:4],
-]  # Get the academic year based on the term code (ex: 2019-2020)
+# Get the academic year based on the term code
+# This is in the format of `202301`, where the first three characters are the year
+# and the rest are the semester code
+assert len(term) == 6
 
-# The format for the catalogs is different for years older than 2018
-if int(termYears[0]) < 2018:
-    url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Courses"
-elif int(termYears[0]) >= 2023:
-    url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/catalog/course-descriptions"
-else:
-    url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Course-Descriptions"
-
-print(url)
+current_catalog_url.current_year = int(term[:4])
 
 """
-getMajorsFromHomepage takes in a URL from the main page of the course catalog,
+`get_majors_from_homepage` takes in a URL from the main page of the course catalog,
 and returns a list of the resulting links to the majors of the format:
 
 Ex:
@@ -54,50 +94,54 @@ Ex:
 """
 
 
-def getMajorsFromHomepage(url: str) -> Dict[str, str]:
-    soup = BeautifulSoup(requests.get(url=url).text.encode("UTF-8"), "lxml")
+def get_majors_from_homepage(url: CatalogUrl) -> Dict[str, CatalogUrl]:
+    soup = BeautifulSoup(requests.get(url=url.format()).text.encode("UTF-8"), "lxml")
 
-    majors: Dict[str, str] = {}
+    majors: Dict[str, CatalogUrl] = {}
 
     # Make sure there are at least some links
     majorLinks = soup.find("div", {"id": "main"})
     if majorLinks != None:
         for link in majorLinks.findNext("ul").findChildren("li"):
-            majors[link.find("a").get_text()] = link.find("a")["href"]
+            majors[link.find("a").get_text()] = current_catalog_url.parse_relative_url(
+                link.find("a")["href"]
+            )
 
     return majors
 
 
 """
-getClassesFromMajor takes in the URL of a specific major, and returns all the
+`get_classes_from_major` takes in the URL of a specific major, and returns all the
 metadata associated with the classes contained within
 """
 
 
-def getClassesFromMajor(url: str) -> List[Tuple[str, Dict[str, str]]]:
-    soup = BeautifulSoup(requests.get(url=url).text.encode("UTF-8"), "lxml")
+def get_classes_from_major(url: CatalogUrl) -> List[Tuple[str, Dict[str, CatalogUrl]]]:
+    soup = BeautifulSoup(requests.get(url=url.format()).text.encode("UTF-8"), "lxml")
 
-    classes: Dict[str, str] = {}
+    classes: Dict[str, CatalogUrl] = {}
 
     # Make sure there are at least some links
     classLinks = soup.find("div", {"id": "main"})
     if classLinks != None:
         for link in classLinks.findNext("ul").findChildren("li"):
-            classes[link.find("a").get_text()] = link.find("a")["href"]
+            classes[link.find("a").get_text()] = current_catalog_url.parse_relative_url(
+                link.find("a")["href"]
+            )
 
     return classes
 
 
 """
-getDataFromClass takes in the URL for a class and returns any metadata needed
+`get_data_from_class` takes in the URL for a class and returns any metadata needed
 from its page
 
 Currently, this only includes the course's description
 """
 
 
-def getDataFromClass(url: str) -> Dict[str, str]:
-    soup = BeautifulSoup(requests.get(url=url).text.encode("UTF-8"), "lxml")
+def get_data_from_class(url: CatalogUrl) -> Dict[str, str]:
+    soup = BeautifulSoup(requests.get(url=url.format()).text.encode("UTF-8"), "lxml")
 
     metadata: Dict[str, str] = {}
 
@@ -108,11 +152,11 @@ def getDataFromClass(url: str) -> Dict[str, str]:
 
 course_catalog = {}
 
-for majorURL in tqdm(getMajorsFromHomepage(url).values()):
+for major_url in tqdm(get_majors_from_homepage(current_catalog_url).values()):
     for fullClassName, classURL in tqdm(
-        getClassesFromMajor(catalogRoot + majorURL).items(), leave=False
+        get_classes_from_major(major_url).items(), leave=False
     ):
-        metadata = getDataFromClass(catalogRoot + classURL)
+        metadata = get_data_from_class(classURL)
 
         # fullClassName is a string that looks like:
         # Ex: "UBW 100 Intruduction to Basketweaving"
