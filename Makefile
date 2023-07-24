@@ -1,5 +1,5 @@
 .PHONY: all
-all: semesterdata catalog faculty prerequisites rmp sis
+all: semesterdata catalog faculty prerequisites sis
 
 .PHONY: clean
 clean:
