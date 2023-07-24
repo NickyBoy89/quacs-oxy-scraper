@@ -7,7 +7,7 @@ clean:
 	rm sis_scraper/mod.rs
 
 .PHONY: catalog
-catalog:
+catalog: semesterdata
 	cp semesters/semesters.json catalog_scraper
 	cd catalog_scraper && python3 main.py
 
