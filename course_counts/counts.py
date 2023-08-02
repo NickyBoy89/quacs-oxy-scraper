@@ -33,7 +33,7 @@ def fetch_all_courses(semester_number: str, caching_enabled=False) -> BeautifulS
     parsed_courses: BeautifulSoup
 
     if caching_enabled and path.exists(COURSE_COUNTS_CACHE_FILE):
-        logging.info("Using cached response data")
+        logging.warning("Using cached response data, may be out-of-date")
         with open(COURSE_COUNTS_CACHE_FILE) as cached_data:
             parsed_courses = BeautifulSoup(cached_data.read(), "html.parser")
     else:
@@ -46,8 +46,8 @@ def fetch_all_courses(semester_number: str, caching_enabled=False) -> BeautifulS
         )
 
         if caching_enabled:
-            logging.warn(
-                f"Since caching is enabled, a copy of the response has been saved to {COURSE_COUNTS_CACHE_FILE} for future runs"
+            logging.warning(
+                f"Since caching is enabled, a copy of the response is being saved to {COURSE_COUNTS_CACHE_FILE} for future runs"
             )
             with open(COURSE_COUNTS_CACHE_FILE, "w") as cache_file:
                 cache_file.write(response.text)
