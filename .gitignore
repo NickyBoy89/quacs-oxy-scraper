@@ -3,6 +3,8 @@ scraper/
 __pycache__/
 example
 
+venv/
+
 #Generated files
 *.json
 mod.rs
