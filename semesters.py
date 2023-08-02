@@ -1,16 +1,10 @@
-import requests, json, re, time, sys
 from bs4 import BeautifulSoup
-from tqdm import tqdm
-from os import path
-import urllib3
 
-# Import counts
-import counts
+from course_counts.counts import fetch_semester_list
 
-with open("semesters.json", "w") as schools:
-    # Write the semesters to the file
-    for semester in counts.semesters():
-        schools.write(semester["value"] + "\n")
+with open("semesters.json", "w") as semester_data:
+    for semester in fetch_semester_list():
+        semester_data.write(semester["value"] + "\n")
         # Stop when you get to the currently selected one
         if semester.has_attr("selected"):
             break
