@@ -95,7 +95,9 @@ Ex:
 
 
 def get_majors_from_homepage(url: CatalogUrl) -> Dict[str, CatalogUrl]:
-    soup = BeautifulSoup(requests.get(url=url.format()).text.encode("UTF-8"), "lxml")
+    soup = BeautifulSoup(
+        requests.get(url=url.format()).text.encode("UTF-8"), "html.parser"
+    )
 
     majors: Dict[str, CatalogUrl] = {}
 
@@ -117,7 +119,9 @@ metadata associated with the classes contained within
 
 
 def get_classes_from_major(url: CatalogUrl) -> List[Tuple[str, Dict[str, CatalogUrl]]]:
-    soup = BeautifulSoup(requests.get(url=url.format()).text.encode("UTF-8"), "lxml")
+    soup = BeautifulSoup(
+        requests.get(url=url.format()).text.encode("UTF-8"), "html.parser"
+    )
 
     classes: Dict[str, CatalogUrl] = {}
 
@@ -141,7 +145,9 @@ Currently, this only includes the course's description
 
 
 def get_data_from_class(url: CatalogUrl) -> Dict[str, str]:
-    soup = BeautifulSoup(requests.get(url=url.format()).text.encode("UTF-8"), "lxml")
+    soup = BeautifulSoup(
+        requests.get(url=url.format()).text.encode("UTF-8"), "html.parser"
+    )
 
     metadata: Dict[str, str] = {}
 

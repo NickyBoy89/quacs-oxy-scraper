@@ -1,135 +1,82 @@
 import requests, json, re, time, sys
-from bs4 import BeautifulSoup
+from requests import Session
+from bs4 import BeautifulSoup, NavigableString
 from tqdm import tqdm
 from os import path
 import urllib3
 
+from typing import List
+
+from prerequisite_parser import ParsedClassPage, ParsedReservation, parse_prerequisites
+
+from course_counts import (
+    make_class_body,
+    fetch_all_courses,
+    fetch_landing_page,
+    COURSE_COUNTS_HOMEPAGE,
+    COURSE_COUNTS_REQUEST_HEADER,
+)
+
 import concurrent.futures
 
-import prereq_parser as prereq
-
-# The number of workers to use when making the requests to the server
-concurrentWorkers = 4
-
-# Ignore the SSL errors
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
+current_semester = ""
 if len(sys.argv) > 1:
-    term = sys.argv[1]
+    current_semester = sys.argv[1]
 else:
-    with open("semesters.json") as semesters:
-        term = semesters.read().split("\n")[-2]
+    with open("semesters.json") as semester_data:
+        current_semester = semester_data.readlines()[-1].strip()
 
-caching = False  # Set this to True to cache the ~15s long initial request to the server
 
-dump = {}  # Stores the final JSON generated
-
-session = requests.Session()  # Initialize the browser session
-
-# Load the homepage and get its data into a session
-initialLoad = session.get("https://counts.oxy.edu/public/default.aspx", verify=False)
-soup = BeautifulSoup(initialLoad.text, "html.parser")
-
-# Extracts data from class page
-def getClassPageData(data, sessionData, threadNumber, verbose=False):
-    # print(f"Started thread {threadNumber}")
-
-    classButton = data.find("a")["href"][25:-5]
-
-    postData = {
-        "ScriptManager2": f"searchResultsPanel|{classButton}",
-        "tabContainer$TabPanel1$ddlSemesters": term,
-        "tabContainer$TabPanel1$ddlSubjects": "",
-        "tabContainer$TabPanel1$txtCrseNum": "",
-        "tabContainer$TabPanel2$ddlCoreTerms": "201601",
-        "tabContainer$TabPanel2$ddlCoreAreas": "CPFA",
-        "tabContainer$TabPanel2$ddlCoreSubj": "AMST",
-        "tabContainer$TabPanel3$ddlAdvTerms": "201601",
-        "tabContainer$TabPanel3$ddlAdvSubj": "AMST",
-        "tabContainer$TabPanel3$ddlAdvTimes": "07000755",
-        "tabContainer$TabPanel3$ddlAdvDays": "u",
-        "tabContainer$TabPanel4$ddlCRNTerms": "201601",
-        "tabContainer$TabPanel4$txtCRN": "",
-        "tabContainer$TabPanel5$ddlMajorsTerm": "201601",
-        "tabContainer$TabPanel5$ddlCatalogYear": "200801",
-        "__EVENTTARGET": classButton,
-        "__EVENTARGUMENT": "",
-        "__LASTFOCUS": "",
-        "__VIEWSTATE": re.findall("(?<=(\|__VIEWSTATE\|))(.*?)(?=\|)", response.text)[
-            0
-        ][1],
-        "__VIEWSTATEGENERATOR": re.findall(
-            "(?<=(\|__VIEWSTATEGENERATOR\|))(.*?)(?=\|)", response.text
-        )[0][1],
-        "__EVENTVALIDATION": re.findall(
-            "(?<=(\|__EVENTVALIDATION\|))(.*?)(?=\|)", response.text
-        )[0][1],
-        "tabContainer_ClientState": """{"ActiveTabIndex":0,"TabEnabledState":[true,true,true,true,true],"TabWasLoadedOnceState":[true,false,false,false,false]}""",
-        "__VIEWSTATEENCRYPTED": re.findall(
-            "(?<=(\|__VIEWSTATEENCRYPTED\|\|))(.*?)(?=\|)", response.text
-        )[0][1],
-        "__ASYNCPOST": "true",
-    }
-    postHeaders = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36"
-    }
-    postResponse = sessionData.post(
-        url="https://counts.oxy.edu/public/default.aspx",
-        data=postData,
-        headers=postHeaders,
+def parse_class_page_data(
+    parsed_class_row: NavigableString, session: Session
+) -> List[ParsedClassPage]:
+    class_request_body = make_class_body(
+        parsed_class_row,
+        current_semester,
     )
-    classSoup = BeautifulSoup(postResponse.text, "lxml")
-    if verbose:
-        print(classSoup.find("span", {"id": "lblCrseDesc"}))
 
-    restrictionsPanel = ""
-    corequisitesPanel = ""
-    prereqsPanel = ""
-    reservedPanel = ""
+    response = session.post(
+        url=COURSE_COUNTS_HOMEPAGE,
+        data=class_request_body,
+        headers=COURSE_COUNTS_REQUEST_HEADER,
+    )
 
-    if classSoup.find(id="restrictionsPanel") != None:
-        restrictionsPanel = (
-            classSoup.find(id="restrictionsPanel").findNext("ul").findAll("li")
-        )
+    restrictions: List[str] = []
+    corequisites: List[str] = []
+    prerequisites: List[str] = []
+    reserved: List[str] = []
 
-    if classSoup.find(id="corequisitesPanel") != None:
-        corequisitesPanel = (
-            classSoup.find(id="corequisitesPanel").findNext("span").text.split(", ")
-        )
-        for i in range(len(corequisitesPanel)):
-            corequisitesPanel[i] = joinFirstTwoWordsWithDash(corequisitesPanel[i])
+    restrictions_panel = response.find(id="restrictionsPanel")
+    corequisites_panel = response.find(id="corequisitesPanel")
+    prereqs_panel = response.find(id="prereqsPanel")
+    reserved_panel = response.find(id="resvDetailsPanel")
 
-    if classSoup.find(id="prereqsPanel") != None:
-        prereqsPanel = parsePrerequisites(
-            classSoup.find(id="prereqsPanel").findAll("tr")[1:]
-        )
+    if restrictions_panel != None:
+        restrictions = restrictions_panel.find("ul").find_all("li")
+    if corequisites_panel != None:
+        # The corequisite format looks something like this:
+        # COMP 131 1-1 (1059), COMP 131 1-2 (1060)
+        corequisite_text = corequisites_panel.find("span", id="lblCorequisites")
+        for coreq_course in corequisite_text.split(", "):
+            department, course_number, _ = coreq_course.split(" ")
+            # Note: This can have duplicate courses
+            corequisites.append(f"{department}-{course_number}")
+    if prereqs_panel != None:
+        prereq_rows = prereqs_panel.find_all("tr")[1:]
+        rows_text = list(map(lambda row: row.find("td").text, prereq_rows))
+        combined_rows = "\n".join(rows_text)
 
-    if classSoup.find(id="resvDetailsPanel") != None:
-        reservedPanel = parseReservedSeats(
-            classSoup.find(id="resvDetailsPanel").findAll("tr")[1:]
-        )
+        prerequisites = parse_prerequisites(combined_rows)
+    if reserved_panel != None:
+        reserved = parse_reserved_seats(reserved_panel.find_all("tr")[1:])
 
-    if data.find("a") != None:
-        textKey = data.find("a").text
-
-    if verbose:
-        print(f"Prerequitites: {prereqsPanel}")
-        print(f"Corequisites: {corequisitesPanel}")
-        print(f"Restrictions: {restrictionsPanel}")
-
-    # print(f"Finished thread {threadNumber}")
-
-    return {
-        "restrictions": restrictionsPanel,
-        "coreqs": corequisitesPanel,
-        "prereqs": prereqsPanel,
-        "reserved": reservedPanel,
-        "textKey": textKey,
-    }
-
-
-def joinFirstTwoWordsWithDash(words):
-    return re.findall("([^\s]+\s+[^\s]+)", words)[0].replace(" ", "-")
+    return ParsedClassPage(
+        restrictions=restrictions,
+        corequisites=corequisites,
+        prereqs=prerequisites,
+        reserved=reserved,
+        text_key="",
+    )
 
 
 def getLevelRestriction(listText):
@@ -162,148 +109,36 @@ def getPrereqRestriction(listText):
     return levels
 
 
-# Parses a list of rows from the reserved seats section and returns a list of dictionaries with the corresponding mappings:
-# "reservedFor" - who the class is reserved for, "max" - Number of seats reserved, and "open" - the number of reserved seats left
-def parseReservedSeats(reservedSeatRows):
-    parsedReservations = []
-    for row in reservedSeatRows:
-        currentReservation = {}
-        for index, item in enumerate(row.findAll("td")):
-            if index == 0:  # First item is reservedFor
-                currentReservation["reservedFor"] = item.text
-            elif index == 1:
-                currentReservation["max"] = int(item.text)
-            elif index == 2:
-                currentReservation["open"] = int(item.text)
-        parsedReservations.append(currentReservation)
-    return parsedReservations
+def parse_reserved_seats(
+    reserved_seat_rows: List[NavigableString],
+) -> List[ParsedReservation]:
+    reservations = []
 
-
-# Parenthesies stripping logic
-def parsePrerequisites(prereqList):
-    returnPrereqs = []
-    groupedLogic = []
-    insideGroup = False
-    pareIndex = {"(": [], ")": []}
-    for i in prereqList:
-        returnPrereqs.append(i.find("td").text)
-    for prerequisite in range(len(returnPrereqs)):
-        if (
-            "(" in returnPrereqs[prerequisite]
-        ):  # Note: Does not work with nested parenthesies
-            returnPrereqs[prerequisite] = returnPrereqs[prerequisite][
-                1:
-            ].strip()  # Strip out the opening parenthesies
-            pareIndex["("].append(prerequisite)
-            insideGroup = True
-        elif ")" in returnPrereqs[prerequisite]:
-            returnPrereqs[prerequisite] = returnPrereqs[prerequisite][
-                :-1
-            ].strip()  # Strip out the closing parenthesies
-            pareIndex[")"].append(prerequisite)
-            if insideGroup == True:
-                groupedLogic.append(
-                    returnPrereqs[(pareIndex["("][0]) : (pareIndex[")"][0])]
-                )
-                del pareIndex["("][0]
-                del pareIndex[")"][0]
-            insideGroup = False
-        elif insideGroup == False:
-            groupedLogic.append(returnPrereqs[prerequisite])
-    # print(groupedLogic)
-    return returnPrereqs
-
-
-# Parses the data that comes from getClassPageData into JSON
-def parseJson(data):
-    finalRestrictions = {}
-
-    if len(data["restrictions"]) > 0:
-        finalRestrictions["restrictions"] = {}
-        finalRestrictions["restrictions"]["classification"] = getLevelRestriction(
-            data["restrictions"]
+    for row in reserved_seat_rows:
+        reservation_name, max_seats, open_seats, _ = row.find_all("td")
+        reservations.append(
+            ParsedReservation(
+                reserved_for=reservation_name.text,
+                max_seats=max_seats.text,
+                open_seats=open_seats.text,
+            )
         )
-    if len(data["coreqs"]) > 0:
-        finalRestrictions["corequisites"] = {}
-        finalRestrictions["corequisites"]["cross_list_courses"] = data["coreqs"]
-    if len(data["prereqs"]) > 0:
-        finalRestrictions["prerequisites"] = prereq.parse(data["prereqs"])
-    if len(data["reserved"]) > 0:
-        finalRestrictions["reserved"] = data["reserved"]
 
-    # print(finalRestrictions)
-    return finalRestrictions
+    return reservations
 
 
-data = {
-    "ScriptManager2": """pageUpdatePanel|tabContainer$TabPanel1$btnGo""",
-    "tabContainer_ClientState": soup.find(id="tabContainer_ClientState")["value"],
-    "__EVENTTARGET": "",
-    "__EVENTARGUMENT": "",
-    "__LASTFOCUS": "",
-    "__VIEWSTATE": soup.find(id="__VIEWSTATE")["value"],
-    "__VIEWSTATEGENERATOR": soup.find(id="__VIEWSTATEGENERATOR")["value"],
-    "__VIEWSTATEENCRYPTED": soup.find(id="__VIEWSTATEENCRYPTED")["value"],
-    "__EVENTVALIDATION": soup.find(id="__EVENTVALIDATION")["value"],
-    "tabContainer$TabPanel1$ddlSemesters": term,
-    "tabContainer$TabPanel1$ddlSubjects": "",
-    "tabContainer$TabPanel1$txtCrseNum": "",
-    "tabContainer$TabPanel2$ddlCoreTerms": "201601",
-    "tabContainer$TabPanel2$ddlCoreAreas": "CPFA",
-    "tabContainer$TabPanel2$ddlCoreSubj": "AMST",
-    "tabContainer$TabPanel3$ddlAdvTerms": "201601",
-    "tabContainer$TabPanel3$ddlAdvSubj": "AMST",
-    "tabContainer$TabPanel3$ddlAdvTimes": "07000755",
-    "tabContainer$TabPanel3$ddlAdvDays": "u",
-    "tabContainer$TabPanel4$ddlCRNTerms": "201601",
-    "tabContainer$TabPanel4$txtCRN": "",
-    "tabContainer$TabPanel5$ddlMajorsTerm": "201601",
-    "tabContainer$TabPanel5$ddlCatalogYear": "200801",
-    "__ASYNCPOST": "true",
-    "tabContainer$TabPanel1$btnGo": "Go",
-}
-
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36"
-}
-
-# Gets all the course information and turns it into a soup, plus some pseudo-caching logic to speed up development
-if caching:
-    if path.exists("cached_response"):
-        print("Found pre-existing response data, loading that in")
-        with open("cached_response", "r") as responseData:
-            request = responseData.read()
-        response = BeautifulSoup(request, "lxml")
-    else:
-        print("Did not find cached response. Creating it now for next iteration")
-        request = session.post(
-            "https://counts.oxy.edu/public/default.aspx",
-            data=data,
-            headers=headers,
-            verify=False,
-        )
-        with open("cached_response", "w") as responseData:
-            responseData.write(request.text)
-        response = BeautifulSoup(request.text, "html.parser")
-else:
-    print(
-        "Starting request for all classes to server. This will take ~15 seconds to complete"
-    )
-    request = session.post(
-        "https://counts.oxy.edu/public/default.aspx",
-        data=data,
-        headers=headers,
-        verify=False,
-    )
-    response = BeautifulSoup(request.text, "html.parser")
-    print("Finished getting response")
-
-start = time.time()
+session = requests.Session()
 
 # Finds all classes by rows
-classRows = response.findAll(
-    "tr", {"style": "background-color:#C5DFFF;font-size:X-Small;"}
-) + response.findAll("tr", {"style": "background-color:White;font-size:X-Small;"})
+class_rows = (
+    fetch_all_courses(current_semester, session=session, caching_enabled=True)
+    .find("table", id="gvResults")
+    .find_all("tr")
+)
+
+for class_row in tqdm(class_rows):
+    print(parse_class_page_data(class_row, session=session))
+
 
 # Multithreading
 if concurrentWorkers <= 1:

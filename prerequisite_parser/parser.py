@@ -1,6 +1,60 @@
 import re, json
 
-from typing import List, Dict
+from typing import List, Dict, Tuple
+
+from .parsed_types import Prerequisite, SingleClass, ClassGroup
+
+
+def parse_prerequisites(text: str) -> Prerequisite:
+    start_index = 0
+
+    parsed = []
+
+    index = 0
+    while index < len(text):
+        match text[index]:
+            case "(":
+                start, end = match_parenthesies(text, index)
+                parsed.append(parse_prerequisites(text[start + 1 : end]))
+                index = end + 1
+                start_index = index
+            case "\n":
+                parsed.append(parse_single_course(text[start_index : index + 1]))
+                start_index = index
+        index += 1
+
+    print(parsed)
+
+
+def match_parentheses(text: str, start_index: int) -> Tuple[int, int]:
+    index = start_index
+
+    paren_balance = 0
+    while index < len(text):
+        match text[index]:
+            case "(":
+                paren_balance += 1
+            case ")":
+                paren_balance -= 1
+                if paren_balance == 0:
+                    return (start_index, index)
+        index += 1
+
+    raise Exception("Could not find a closing parenthesies")
+
+
+def parse_single_course(text: str) -> SingleClass:
+    words = text.split(" ")
+    match len(words):
+        case 3:
+            return SingleClass(
+                prefixed_operator=Operator.parse(words[0]),
+                class_name=" ".join(words[1:]),
+            )
+        case 2:
+            return SingleClass(class_name=" ".join(words[1:]))
+
+    raise Exception("Unknown number of words encountered while parsing class")
 
 
 def parse(data: List[str], verbose=False) -> Dict[str, str]:
@@ -80,7 +134,6 @@ def addGroupedElements(elements: List[str]) -> Dict[str, str]:
         normIndex = (len(elements) - 1) - element[0]
 
         if isinstance(element[1], list):
-
             # Modified the logic operators on the beginning of lists
             logicOperators[normIndex][0] = logicOperators[normIndex][1]
             element[1][0] = f"{logicOperators[normIndex][1]} " + stripOperator(
