@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 
-from course_counts.counts import fetch_semester_list
+from course_counts import fetch_semester_list
 
 with open("semesters.json", "w") as semester_data:
     for semester in fetch_semester_list():
