@@ -10,6 +10,8 @@ from . import (
     CourseCountsContext,
 )
 
+from .counts_requests import make_all_courses_request_body
+
 
 import logging
 
@@ -22,23 +24,18 @@ def fetch_landing_page(session=requests.Session()) -> BeautifulSoup:
 
 
 def fetch_semester_list() -> List[Tag | NavigableString | None]:
-    return parsed_landing_page.find(id="tabContainer_TabPanel1_ddlSemesters").find_all(
-        "option"
+    return (
+        fetch_landing_page()
+        .find(id="tabContainer_TabPanel1_ddlSemesters")
+        .find_all("option")
     )
 
 
 def fetch_subject_list() -> List[Tag | NavigableString | None]:
-    return parsed_landing_page.find(id="tabContainer_TabPanel3_ddlAdvSubj").find_all(
-        "option"
-    )
-
-
-def extract_context(body: BeautifulSoup) -> CourseCountsContext:
-    return CourseCountsContext(
-        view_state=body.find(id="__VIEWSTATE")["value"],
-        view_state_generator=body.find(id="__VIEWSTATEENCRYPTED")["value"],
-        view_state_encrypted=body.find(id="__VIEWSTATEENCRYPTED")["value"],
-        event_validation=body.find(id="__EVENTVALIDATION")["value"],
+    return (
+        fetch_landing_page()
+        .find(id="tabContainer_TabPanel3_ddlAdvSubj")
+        .find_all("option")
     )
 
 
@@ -48,7 +45,7 @@ def fetch_all_courses(
     session=requests.Session(),
     caching_enabled=False,
 ) -> BeautifulSoup:
-    request_body = make_request_body(semester_number, context)
+    request_body = make_all_courses_request_body(semester_number, context)
 
     parsed_courses: BeautifulSoup
 

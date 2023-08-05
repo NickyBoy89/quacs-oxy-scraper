@@ -2,6 +2,8 @@ import urllib3
 import requests
 import logging
 
+import re
+
 from bs4 import BeautifulSoup
 
 from typing import Self
@@ -10,6 +12,10 @@ logging.basicConfig(level=logging.INFO)
 
 
 class CourseCountsContext:
+    # Context
+    client_state: str
+
+    # State variables
     view_state: str
     view_state_generator: str
     view_state_encrypted: str
@@ -17,11 +23,13 @@ class CourseCountsContext:
 
     def __init__(
         self,
+        client_state: str,
         view_state: str,
         view_state_generator: str,
         view_state_encrypted: str,
         event_validation: str,
     ):
+        self.client_state = client_state
         self.view_state = view_state
         self.view_state_generator = view_state_generator
         self.view_state_encrypted = view_state_encrypted
@@ -29,10 +37,30 @@ class CourseCountsContext:
 
     def parse(source: BeautifulSoup) -> Self:
         return CourseCountsContext(
+            client_state=source.find(id="tabContainer_ClientState")["value"],
             view_state=source.find(id="__VIEWSTATE")["value"],
             view_state_generator=source.find(id="__VIEWSTATEENCRYPTED")["value"],
             view_state_encrypted=source.find(id="__VIEWSTATEENCRYPTED")["value"],
             event_validation=source.find(id="__EVENTVALIDATION")["value"],
+        )
+
+    def parse_courses(source: BeautifulSoup) -> Self:
+        # These values are embedded in the source of the page, so they need to
+        # be extracted
+        return CourseCountsContext(
+            view_state=re.findall("(?<=(\|__VIEWSTATE\|))(.*?)(?=\|)", source.text)[0][
+                1
+            ],
+            view_state_generator=re.findall(
+                "(?<=(\|__VIEWSTATEGENERATOR\|))(.*?)(?=\|)", source.text
+            )[0][1],
+            event_validation=re.findall(
+                "(?<=(\|__EVENTVALIDATION\|))(.*?)(?=\|)", source.text
+            )[0][1],
+            client_state="""{"ActiveTabIndex":0,"TabEnabledState":[true,true,true,true,true],"TabWasLoadedOnceState":[true,false,false,false,false]}""",
+            view_state_encrypted=re.findall(
+                "(?<=(\|__VIEWSTATEENCRYPTED\|\|))(.*?)(?=\|)", source.text
+            )[0][1],
         )
 
 

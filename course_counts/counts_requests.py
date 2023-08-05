@@ -1,5 +1,8 @@
 from . import CourseCountsContext
 
+from bs4 import NavigableString
+from typing import Dict
+
 
 def make_all_courses_request_body(
     selected_semester: str,
@@ -7,9 +10,7 @@ def make_all_courses_request_body(
 ) -> Dict[str, str]:
     return {
         "ScriptManager2": """pageUpdatePanel|tabContainer$TabPanel1$btnGo""",
-        "tabContainer_ClientState": parsed_context.find(id="tabContainer_ClientState")[
-            "value"
-        ],
+        "tabContainer_ClientState": context.client_state,
         "__EVENTTARGET": "",
         "__EVENTARGUMENT": "",
         "__LASTFOCUS": "",
@@ -44,11 +45,10 @@ def make_individual_class_body(
     # The first column contains the link to the course page
     # The link looks something like: javascript:__doPostBack('gvResults$ctl02$lnkBtnCrn','')
     strip_prefix = "javascript:__doPostBack('"
-    strip_suffix = "', '')"
+    strip_suffix = "','')"
 
     class_button = (
-        data.find("td")
-        .find("a")["href"]
+        parsed_class_row.find("a")["href"]
         .removeprefix(strip_prefix)
         .removesuffix(strip_suffix)
     )
