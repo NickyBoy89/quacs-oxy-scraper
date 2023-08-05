@@ -2,7 +2,7 @@ import re, json
 
 from typing import List, Dict, Tuple
 
-from .parsed_types import Prerequisite, SingleClass, ClassGroup
+from .parsed_types import Prerequisite, SingleClass, ClassGroup, Operator
 
 
 def parse_prerequisites(text: str) -> Prerequisite:
@@ -14,7 +14,7 @@ def parse_prerequisites(text: str) -> Prerequisite:
     while index < len(text):
         match text[index]:
             case "(":
-                start, end = match_parenthesies(text, index)
+                start, end = match_parentheses(text, index)
                 parsed.append(parse_prerequisites(text[start + 1 : end]))
                 index = end + 1
                 start_index = index
@@ -44,7 +44,9 @@ def match_parentheses(text: str, start_index: int) -> Tuple[int, int]:
 
 
 def parse_single_course(text: str) -> SingleClass:
-    words = text.split(" ")
+    words = text.strip().split(" ")
+    # Remove empty strings
+    words = list(filter(lambda item: item != "", words))
     match len(words):
         case 3:
             return SingleClass(
@@ -54,7 +56,9 @@ def parse_single_course(text: str) -> SingleClass:
         case 2:
             return SingleClass(class_name=" ".join(words[1:]))
 
-    raise Exception("Unknown number of words encountered while parsing class")
+    raise Exception(
+        f"Unknown number of words encountered while parsing class, got {words}"
+    )
 
 
 def parse(data: List[str], verbose=False) -> Dict[str, str]:

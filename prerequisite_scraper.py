@@ -7,12 +7,18 @@ import urllib3
 
 from typing import List
 
-from prerequisite_parser import ParsedClassPage, ParsedReservation, parse_prerequisites
+from prerequisite_parser import (
+    ParsedClassPage,
+    ParsedReservation,
+    ParsedRestrictions,
+    parse_prerequisites,
+)
 
 from course_counts import (
-    make_class_body,
+    make_individual_class_body,
     fetch_all_courses,
     fetch_landing_page,
+    CourseCountsContext,
     COURSE_COUNTS_HOMEPAGE,
     COURSE_COUNTS_REQUEST_HEADER,
 )
@@ -28,18 +34,24 @@ else:
 
 
 def parse_class_page_data(
-    parsed_class_row: NavigableString, session: Session
+    parsed_class_row: NavigableString,
+    session: Session,
+    session_context: CourseCountsContext,
 ) -> List[ParsedClassPage]:
-    class_request_body = make_class_body(
+    class_request_body = make_individual_class_body(
         parsed_class_row,
         current_semester,
+        ctx,
     )
 
-    response = session.post(
+    # print(class_request_body)
+
+    class_response = session.post(
         url=COURSE_COUNTS_HOMEPAGE,
         data=class_request_body,
         headers=COURSE_COUNTS_REQUEST_HEADER,
     )
+    response = BeautifulSoup(class_response.text, "html.parser")
 
     restrictions: List[str] = []
     corequisites: List[str] = []
@@ -51,14 +63,18 @@ def parse_class_page_data(
     prereqs_panel = response.find(id="prereqsPanel")
     reserved_panel = response.find(id="resvDetailsPanel")
 
+    # print(restrictions_panel, corequisites_panel, prereqs_panel, reserved_panel)
+
     if restrictions_panel != None:
-        restrictions = restrictions_panel.find("ul").find_all("li")
+        restrictions = ParsedRestrictions.parse(
+            restrictions_panel.find("ul").find_all("li")
+        )
     if corequisites_panel != None:
         # The corequisite format looks something like this:
         # COMP 131 1-1 (1059), COMP 131 1-2 (1060)
-        corequisite_text = corequisites_panel.find("span", id="lblCorequisites")
+        corequisite_text = corequisites_panel.find("span", id="lblCorequisites").text
         for coreq_course in corequisite_text.split(", "):
-            department, course_number, _ = coreq_course.split(" ")
+            department, course_number, *_ = coreq_course.split(" ")
             # Note: This can have duplicate courses
             corequisites.append(f"{department}-{course_number}")
     if prereqs_panel != None:
@@ -79,43 +95,13 @@ def parse_class_page_data(
     )
 
 
-def getLevelRestriction(listText):
-    restrictions = {"may_not_be": []}
-    for level in listText:
-        if "students may not enroll in this class" in level.text:
-            restrictions["may_not_be"] = getPrereqRestriction(
-                re.findall(".+?(?= students may not enroll in this class)", level.text)[
-                    0
-                ]
-            )
-        elif "students may enroll in this class" in level.text:
-            restrictions["must_be"] = getPrereqRestriction(
-                re.findall(".+?(?= students may enroll in this class)", level.text)[0]
-            )
-    return restrictions
-
-
-# Restrictions panel
-def getPrereqRestriction(listText):
-    levels = []
-    if "Graduate" in listText:
-        levels.append("Graduate")
-    if "Senior" in listText:
-        levels.append("Senior")
-    if "Junior" in listText:
-        levels.append("Junior")
-    if "Frosh" in listText:
-        levels.append("Frosh")
-    return levels
-
-
 def parse_reserved_seats(
     reserved_seat_rows: List[NavigableString],
 ) -> List[ParsedReservation]:
     reservations = []
 
     for row in reserved_seat_rows:
-        reservation_name, max_seats, open_seats, _ = row.find_all("td")
+        reservation_name, max_seats, open_seats = row.find_all("td")
         reservations.append(
             ParsedReservation(
                 reserved_for=reservation_name.text,
@@ -129,37 +115,23 @@ def parse_reserved_seats(
 
 session = requests.Session()
 
-# Finds all classes by rows
-class_rows = (
-    fetch_all_courses(current_semester, session=session, caching_enabled=True)
-    .find("table", id="gvResults")
-    .find_all("tr")
+landing = fetch_landing_page(session=session)
+ctx = CourseCountsContext.parse(landing)
+
+all_courses = fetch_all_courses(
+    current_semester, ctx, session=session, caching_enabled=True
 )
 
+# Finds all classes by rows
+class_rows = all_courses.find("table", id="gvResults").find_all("tr", recursive=False)[
+    1:
+]
+
+ctx = CourseCountsContext.parse_courses(all_courses)
+
 for class_row in tqdm(class_rows):
-    print(parse_class_page_data(class_row, session=session))
+    print(parse_class_page_data(class_row, session, ctx))
 
-
-# Multithreading
-if concurrentWorkers <= 1:
-    for ind, i in tqdm(enumerate(classRows)):
-        data = getClassPageData(i, session, ind)
-        dump[data["textKey"]] = parseJson(data)
-else:
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=concurrentWorkers
-    ) as executor:
-        # Submit all the work to the thread pool
-        future_to_url = {
-            executor.submit(getClassPageData, i[1], session, i[0], verbose=False): i
-            for i in enumerate(classRows)
-        }
-        # Collect the results
-        for future in tqdm(
-            concurrent.futures.as_completed(future_to_url), total=len(classRows)
-        ):
-            data = future.result()
-            dump[data["textKey"]] = parseJson(data)
 
 # Saving data into json file
 # print(json.dumps(dump, indent=4, sort_keys=True))
