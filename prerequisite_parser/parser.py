@@ -2,7 +2,7 @@ import re, json
 
 from typing import List, Dict, Tuple
 
-from parsed_types import ParsedPrerequisite, SingleClass, ClassGroup, Operator
+from .parsed_types import ParsedPrerequisite, SingleClass, ClassGroup, Operator
 
 
 def parse_prerequisite_list(prereq_list: List[str]) -> ParsedPrerequisite:
