@@ -21,6 +21,10 @@ schools.json: semesters.json school_scraper.py
 faculty.json: faculty_directory_scraper.py
 	$(PY) faculty_directory_scraper.py
 
+.PHONY: test
+test:
+	$(PY) -m unittest prerequisite_parser
+
 .PHONY: clean
 clean:
 	find . -name '*.json' -delete

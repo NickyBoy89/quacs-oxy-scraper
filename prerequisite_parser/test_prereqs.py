@@ -1,6 +1,6 @@
 import unittest
 
-from parser import parse_prerequisite_list
+from .parser import parse_prerequisite_list
 
 # prerequisites = [['Math 120', 'or Math 124', 'or Math 128', 'or APBC', 'or OXMA'], ['and Phys 120', 'or Phys 125', 'or APPE']]
 # prerequisites = ['Math 101', 'and Math 100', 'and Math 201']
@@ -89,6 +89,8 @@ class TestPrerequiteParsing(unittest.TestCase):
         ]
 
         print(parse_prerequisite_list(input))
+
+        raise Exception("fail!")
 
     # def testAddingOperators(self):
     #     # Test that the correct template for the courses are generated
