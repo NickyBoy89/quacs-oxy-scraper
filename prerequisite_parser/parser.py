@@ -2,10 +2,14 @@ import re, json
 
 from typing import List, Dict, Tuple
 
-from .parsed_types import Prerequisite, SingleClass, ClassGroup, Operator
+from parsed_types import ParsedPrerequisite, SingleClass, ClassGroup, Operator
 
 
-def parse_prerequisites(text: str) -> Prerequisite:
+def parse_prerequisite_list(prereq_list: List[str]) -> ParsedPrerequisite:
+    return parse_prerequisites("\n".join(prereq_list))
+
+
+def parse_prerequisites(text: str) -> ParsedPrerequisite:
     start_index = 0
 
     parsed = []
@@ -14,10 +18,13 @@ def parse_prerequisites(text: str) -> Prerequisite:
     while index < len(text):
         match text[index]:
             case "(":
-                start, end = match_parentheses(text, index)
-                parsed.append(parse_prerequisites(text[start + 1 : end]))
-                index = end + 1
-                start_index = index
+                try:
+                    start, end = match_parentheses(text, index)
+                    parsed.append(parse_prerequisites(text[start + 1 : end]))
+                    index = end + 1
+                    start_index = index
+                except Exception as e:
+                    pass
             case "\n":
                 parsed.append(parse_single_course(text[start_index : index + 1]))
                 start_index = index
@@ -44,7 +51,17 @@ def match_parentheses(text: str, start_index: int) -> Tuple[int, int]:
 
 
 def parse_single_course(text: str) -> SingleClass:
-    words = text.strip().split(" ")
+    print(f"Parsing {text}")
+
+    words = text.strip("()\n").split(" ")
+
+    operator: Operator | None = None
+    match words[0]:
+        case "or":
+            pass
+        case "and":
+            pass
+
     # Remove empty strings
     words = list(filter(lambda item: item != "", words))
     match len(words):
