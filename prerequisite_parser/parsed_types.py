@@ -109,17 +109,17 @@ class Operator(Enum):
             return Operator.Or
         elif text == "and":
             return Operator.And
-        raise Exception(f'Unknown prerequisite type: "{text}"')
+        raise Exception(f'Unknown operator type: "{text}"')
 
     def __str__(self) -> str:
         return self.name.lower()
 
 
-class Prerequisite:
+class ParsedPrerequisite:
     prefixed_operator: Operator | None = None
 
 
-class SingleClass(Prerequisite):
+class SingleClass(ParsedPrerequisite):
     class_name: str
 
     def __init__(
@@ -129,16 +129,16 @@ class SingleClass(Prerequisite):
         self.prefixed_operator = prefixed_operator
 
     def __repr__(self) -> str:
-        return f"SingleClass {{ class_name: {self.class_name} }}"
+        return f"SingleClass {{ prefixed_operator: {self.prefixed_operator}, class_name: {self.class_name} }}"
 
     def __dict__(self) -> Dict[str, Any]:
         return {"course": self.class_name, "type": "course"}
 
 
-class ClassGroup(Prerequisite):
-    nested_classes: List[Prerequisite]
+class ClassGroup(ParsedPrerequisite):
+    nested_classes: List[ParsedPrerequisite]
 
-    def __init__(self, nested_classes: List[Prerequisite]):
+    def __init__(self, nested_classes: List[ParsedPrerequisite]):
         self.nested_classes = nested_classes
 
     def __dict__(self) -> Dict[str, Any]:
