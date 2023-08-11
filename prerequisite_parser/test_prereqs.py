@@ -103,9 +103,8 @@ class TestPrerequiteParsing(unittest.TestCase):
             "( 1",
             "and 2",
             "and 3)",
-            "( and 1",
-            "or 2)",
-            "or 5",
+            "( and 4",
+            "or 5)",
         ]
 
         expected = ClassGroup(
@@ -116,8 +115,8 @@ class TestPrerequiteParsing(unittest.TestCase):
                 op=Operator.And,
             ),
             ClassGroup(
-                SingleClass("1"),
-                SingleClass("2"),
+                SingleClass("4"),
+                SingleClass("5"),
                 op=Operator.Or,
             ),
             op=Operator.And,
