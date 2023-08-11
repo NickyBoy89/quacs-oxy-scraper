@@ -50,19 +50,27 @@ class ClassGroup(ParsedPrerequisite):
     @staticmethod
     def combine_prereqs(prereqs: List[ParsedPrerequisite]) -> Self:
         current_operator: Operator | None = None
-        current_grouping = []
+        # The first element never has an operator that is considered
+        current_grouping = [prereqs[0]]
+
+        print("Combining...", len(prereqs))
+        print(prereqs)
 
         parsed = ClassGroup()
 
-        for prereq in prereqs:
-            if prereq.prefixed_operator == current_operator or current_operator == None:
+        print(
+            f"First element has type {current_grouping[0].prefixed_operator}, is {current_grouping[0]}"
+        )
+        for prereq in prereqs[1:]:
+            print(f"Element is {prereq}, current op {current_operator}")
+            if current_operator == None:
                 current_operator = prereq.prefixed_operator
-                current_grouping.append(prereq)
-            else:
+            elif current_operator != prereq.prefixed_operator:
                 new_group = [ClassGroup.combine_prereqs(current_grouping)]
                 current_grouping = new_group
-                current_operator = prereq.prefixed_operator
-                current_grouping.append(prereq)
+
+            current_operator = prereq.prefixed_operator
+            current_grouping.append(prereq)
 
         parsed.nested_classes = current_grouping
         parsed.prefixed_operator = current_operator
