@@ -23,7 +23,7 @@ faculty.json: faculty_directory_scraper.py
 
 .PHONY: test
 test:
-	$(PY) -m unittest prerequisite_parser
+	$(PY) -m unittest --failfast prerequisite_parser
 
 .PHONY: clean
 clean:

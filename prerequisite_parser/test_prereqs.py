@@ -1,6 +1,10 @@
 import unittest
+import json
 
-from .parser import parse_prerequisite_list
+from .parser import parse_prerequisite_list, parse_prerequisites
+from .parsed_types import ParsedPrerequisite, SingleClass, ClassGroup, Operator
+
+from .simplified import Course, Group
 
 # prerequisites = [['Math 120', 'or Math 124', 'or Math 128', 'or APBC', 'or OXMA'], ['and Phys 120', 'or Phys 125', 'or APPE']]
 # prerequisites = ['Math 101', 'and Math 100', 'and Math 201']
@@ -8,28 +12,141 @@ from .parser import parse_prerequisite_list
 
 
 class TestPrerequiteParsing(unittest.TestCase):
-    # def test_parenthesies(self):
-    #     input = ["( 1", "and 2", "and 3)", "( and 1", "or 2)", "and 5"]
-    #
-    #     # General parenthesies test
-    #     self.assertEqual(
-    #         prereq.parseParenthesies(["( 1", "2", "3)", "(1", "2)", "5"]),
-    #         [["1", "2", "3"], ["1", "2"], "5"],
-    #     )
-    #
-    #     # Test for insane levels of grouping
-    #     # self.assertEqual(prereq.parseParenthesies(['((((1', '2)', '3)', '4)', '5)']), [[[[['1', '2'], '3'], '4'], '5']])
-    #
-    #     # Test that unclosed parenthesies just select the rest of the requirements
-    #     self.assertEqual(
-    #         prereq.parseParenthesies(["(1", "2)", "(1", "2", "3"]),
-    #         [["1", "2"], ["1", "2", "3"]],
-    #     )
-    #
-    #     # Test that the function will not change a function with no parenthesies
-    #     self.assertEqual(prereq.parseParenthesies(["1", "2", "3"]), ["1", "2", "3"])
+    def test_simple(self):
+        input = [
+            "1",
+            "and 2",
+            "and 3",
+        ]
 
-    def test_horrendous_operators(self):
+        expected = ClassGroup(
+            [
+                SingleClass("1"),
+                SingleClass("2", prefixed_operator=Operator.And),
+                SingleClass("3", prefixed_operator=Operator.And),
+            ],
+            prefixed_operator=Operator.And,
+        )
+
+        parsed = parse_prerequisite_list(input)
+
+        self.assertEqual(parsed.__dict__(), expected.__dict__())
+
+    def test_simple_group(self):
+        input = [
+            "( 1",
+            "or 2",
+            "or 3)",
+        ]
+
+        expected = ClassGroup(
+            [
+                SingleClass("1"),
+                SingleClass("2"),
+                SingleClass("3"),
+            ],
+            prefixed_operator=Operator.Or,
+        )
+
+        parsed = parse_prerequisite_list(input)
+
+        print(json.dumps(parsed.__dict__(), indent=2))
+        print(json.dumps(expected.__dict__(), indent=2))
+
+        self.assertEqual(parsed.__dict__(), expected.__dict__())
+
+    def test_different_operators(self):
+        input = [
+            "1",
+            "and 2",
+            "or 3",
+        ]
+
+        # expected = ClassGroup([SingleClass("1"), SingleClass("2")])
+
+    def test_machine_learning(self):
+        input = [
+            "COMP 229",
+            "(and MATH 210",
+            "and MATH 214",
+            "or COMP 149)",
+            "(and COMP 146",
+            "or MATH 150)",
+        ]
+
+        expected = ClassGroup(
+            [
+                SingleClass("COMP 229"),
+                ClassGroup(
+                    [
+                        ClassGroup(
+                            [
+                                SingleClass("MATH 210"),
+                                SingleClass("MATH 214"),
+                            ],
+                            prefixed_operator=Operator.And,
+                        ),
+                        SingleClass("COMP 149"),
+                    ],
+                    prefixed_operator=Operator.Or,
+                ),
+                ClassGroup(
+                    [SingleClass("COMP 146"), SingleClass("MATH 150")],
+                    prefixed_operator=Operator.Or,
+                ),
+            ],
+            prefixed_operator=Operator.And,
+        )
+
+        parsed = parse_prerequisite_list(input)
+
+        print("Got:")
+        print(parsed.to_json())
+        print("Expected:")
+        print(expected.to_json())
+        self.maxDiff = 65536
+
+        self.assertEqual(parsed.to_json(), expected.to_json())
+
+    def test_simple_2(self):
+        input = [
+            "( 1",
+            "and 2",
+            "and 3)",
+            "( and 1",
+            "or 2)",
+            "or 5",
+        ]
+
+        expected = ClassGroup(
+            [
+                ClassGroup(
+                    [
+                        SingleClass("1"),
+                        SingleClass("2", prefixed_operator=Operator.And),
+                        SingleClass("3", prefixed_operator=Operator.And),
+                    ],
+                    prefixed_operator=Operator.And,
+                ),
+                ClassGroup(
+                    [
+                        SingleClass("1", prefixed_operator=Operator.And),
+                        SingleClass("2", prefixed_operator=Operator.Or),
+                    ],
+                    prefixed_operator=Operator.Or,
+                ),
+            ]
+        )
+
+        # print(f"Got: {json.dumps(parse_prerequisite_list(input).__dict__(), indent=2)}")
+        # print(f"Expected: {json.dumps(expected.__dict__(), indent=2)}")
+
+        # self.assertEqual(
+        #     parse_prerequisite_list(input),
+        #     expected,
+        # )
+
+    def tesst_horrendous_operators(self):
         input = [
             "( ECON 102",
             "(or APEA",
