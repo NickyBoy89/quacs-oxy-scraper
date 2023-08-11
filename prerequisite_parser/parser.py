@@ -3,7 +3,7 @@ import logging
 
 from typing import List, Dict, Tuple
 
-from .parsed_types import ParsedPrerequisite, SingleClass, ClassGroup, Operator
+from .prerequisites import ParsedPrerequisite, SingleClass, ClassGroup, Operator
 
 
 def parse_prerequisite_list(prereq_list: List[str]) -> ParsedPrerequisite:
@@ -38,7 +38,7 @@ def parse_prerequisites(text: str) -> ParsedPrerequisite:
         index += 1
 
     if len(parsed) > 1:
-        return ClassGroup.from_prereq_list(parsed)
+        return ClassGroup.combine_prereqs(parsed)
     return parsed[0]
 
 

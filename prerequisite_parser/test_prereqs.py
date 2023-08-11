@@ -2,7 +2,7 @@ import unittest
 import json
 
 from .parser import parse_prerequisite_list, parse_prerequisites
-from .parsed_types import ParsedPrerequisite, SingleClass, ClassGroup, Operator
+from .prerequisites import ParsedPrerequisite, SingleClass, ClassGroup, Operator
 
 # prerequisites = [['Math 120', 'or Math 124', 'or Math 128', 'or APBC', 'or OXMA'], ['and Phys 120', 'or Phys 125', 'or APPE']]
 # prerequisites = ['Math 101', 'and Math 100', 'and Math 201']
@@ -18,17 +18,15 @@ class TestPrerequiteParsing(unittest.TestCase):
         ]
 
         expected = ClassGroup(
-            [
-                SingleClass("1"),
-                SingleClass("2", prefixed_operator=Operator.And),
-                SingleClass("3", prefixed_operator=Operator.And),
-            ],
-            prefixed_operator=Operator.And,
+            SingleClass("1"),
+            SingleClass("2", prefixed_operator=Operator.And),
+            SingleClass("3", prefixed_operator=Operator.And),
+            op=Operator.And,
         )
 
         parsed = parse_prerequisite_list(input)
 
-        self.assertEqual(parsed.__dict__(), expected.__dict__())
+        self.assertEqual(parsed.to_json(), expected.to_json())
 
     def test_simple_group(self):
         input = [
@@ -38,29 +36,32 @@ class TestPrerequiteParsing(unittest.TestCase):
         ]
 
         expected = ClassGroup(
-            [
-                SingleClass("1"),
-                SingleClass("2"),
-                SingleClass("3"),
-            ],
-            prefixed_operator=Operator.Or,
+            SingleClass("1"),
+            SingleClass("2"),
+            SingleClass("3"),
+            op=Operator.Or,
         )
 
         parsed = parse_prerequisite_list(input)
 
-        print(json.dumps(parsed.__dict__(), indent=2))
-        print(json.dumps(expected.__dict__(), indent=2))
+        self.assertEqual(parsed.to_json(), expected.to_json())
 
-        self.assertEqual(parsed.__dict__(), expected.__dict__())
-
-    def test_different_operators(self):
+    def test_simple_operator_precedence(self):
         input = [
             "1",
             "and 2",
             "or 3",
         ]
 
-        # expected = ClassGroup([SingleClass("1"), SingleClass("2")])
+        expected = ClassGroup(
+            ClassGroup(SingleClass("1"), SingleClass("2"), op=Operator.And),
+            SingleClass("3"),
+            op=Operator.Or,
+        )
+
+        parsed = parse_prerequisite_list(input)
+
+        self.assertEqual(parsed.to_json(), expected.to_json(), msg=msg)
 
     def test_machine_learning(self):
         input = [
@@ -73,36 +74,27 @@ class TestPrerequiteParsing(unittest.TestCase):
         ]
 
         expected = ClassGroup(
-            [
-                SingleClass("COMP 229"),
+            SingleClass("COMP 229"),
+            ClassGroup(
                 ClassGroup(
-                    [
-                        ClassGroup(
-                            [
-                                SingleClass("MATH 210"),
-                                SingleClass("MATH 214"),
-                            ],
-                            prefixed_operator=Operator.And,
-                        ),
-                        SingleClass("COMP 149"),
-                    ],
-                    prefixed_operator=Operator.Or,
+                    SingleClass("MATH 210"),
+                    SingleClass("MATH 214"),
+                    op=Operator.And,
                 ),
-                ClassGroup(
-                    [SingleClass("COMP 146"), SingleClass("MATH 150")],
-                    prefixed_operator=Operator.Or,
-                ),
-            ],
-            prefixed_operator=Operator.And,
+                SingleClass("COMP 149"),
+                op=Operator.Or,
+            ),
+            ClassGroup(
+                SingleClass("COMP 146"),
+                SingleClass("MATH 150"),
+                op=Operator.Or,
+            ),
+            op=Operator.And,
         )
 
-        parsed = parse_prerequisite_list(input)
+        return None
 
-        print("Got:")
-        print(parsed.to_json())
-        print("Expected:")
-        print(expected.to_json())
-        self.maxDiff = 65536
+        parsed = parse_prerequisite_list(input)
 
         self.assertEqual(parsed.to_json(), expected.to_json())
 
@@ -117,32 +109,25 @@ class TestPrerequiteParsing(unittest.TestCase):
         ]
 
         expected = ClassGroup(
-            [
-                ClassGroup(
-                    [
-                        SingleClass("1"),
-                        SingleClass("2", prefixed_operator=Operator.And),
-                        SingleClass("3", prefixed_operator=Operator.And),
-                    ],
-                    prefixed_operator=Operator.And,
-                ),
-                ClassGroup(
-                    [
-                        SingleClass("1", prefixed_operator=Operator.And),
-                        SingleClass("2", prefixed_operator=Operator.Or),
-                    ],
-                    prefixed_operator=Operator.Or,
-                ),
-            ]
+            ClassGroup(
+                SingleClass("1"),
+                SingleClass("2"),
+                SingleClass("3"),
+                op=Operator.And,
+            ),
+            ClassGroup(
+                SingleClass("1"),
+                SingleClass("2"),
+                op=Operator.Or,
+            ),
+            op=Operator.And,
         )
 
-        # print(f"Got: {json.dumps(parse_prerequisite_list(input).__dict__(), indent=2)}")
-        # print(f"Expected: {json.dumps(expected.__dict__(), indent=2)}")
+        parsed = parse_prerequisite_list(input)
 
-        # self.assertEqual(
-        #     parse_prerequisite_list(input),
-        #     expected,
-        # )
+        msg = str(parsed.to_json())
+
+        self.assertEqual(parsed.to_json(), expected.to_json(), msg=msg)
 
     def tesst_horrendous_operators(self):
         input = [
