@@ -10,6 +10,15 @@ from .prerequisites import ParsedPrerequisite, SingleClass, ClassGroup, Operator
 
 
 class TestPrerequiteParsing(unittest.TestCase):
+    def test_single_class(self):
+        input = ["1"]
+
+        expected = SingleClass("1")
+
+        parsed = parse_prerequisite_list(input)
+
+        self.assertEqual(parsed.to_json(), expeced.to_json())
+
     def test_simple(self):
         input = [
             "1",
