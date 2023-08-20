@@ -107,6 +107,26 @@ class TestPrerequiteParsing(unittest.TestCase):
 
         self.assertEqual(parsed.to_json(), expected.to_json())
 
+    def test_ignore_first_operator(self):
+        input = ["and 1", "or 2", "or 3"]
+
+        expected = ClassGroup(
+            SingleClass("1"), SingleClass("2"), SingleClass("3"), op=Operator.Or
+        )
+
+        parsed = parse_prerequisite_list(input)
+
+        self.assertEqual(parsed.to_json(), expected.to_json())
+
+    def test_ignore_group_first_operator(self):
+        input = ["( and 1", "or 2)"]
+
+        expected = ClassGroup(SingleClass("1"), SingleClass("2"), op=Operator.Or)
+
+        parsed = parse_prerequisite_list(input)
+
+        self.assertEqual(parsed.to_json(), expected.to_json())
+
     def test_simple_2(self):
         input = [
             "( 1",
@@ -135,8 +155,11 @@ class TestPrerequiteParsing(unittest.TestCase):
 
         msg = str(parsed.to_json())
 
+        print(parsed.to_json())
+        self.maxDiff = None
         self.assertEqual(parsed.to_json(), expected.to_json(), msg=msg)
 
+    # TODO: Change this title to run the test
     def tesst_horrendous_operators(self):
         input = [
             "( ECON 102",

@@ -27,6 +27,7 @@ class ParsedPrerequisite:
 
 class SingleClass(ParsedPrerequisite):
     class_name: str
+    is_leading: bool
 
     def __init__(
         self, class_name: str, prefixed_operator: Operator | None = None
@@ -49,31 +50,64 @@ class ClassGroup(ParsedPrerequisite):
 
     @staticmethod
     def combine_prereqs(prereqs: List[ParsedPrerequisite]) -> Self:
-        current_operator: Operator | None = None
-        # The first element never has an operator that is considered
-        current_grouping = [prereqs[0]]
+        current_grouping = []
 
-        print("Combining...", len(prereqs))
-        print(prereqs)
+        parsed = ClassGroup(op=Operator.Or)
 
-        parsed = ClassGroup()
+        print(f"Start: {parsed}, prereqs: {prereqs}")
 
-        print(
-            f"First element has type {current_grouping[0].prefixed_operator}, is {current_grouping[0]}"
-        )
-        for prereq in prereqs[1:]:
-            print(f"Element is {prereq}, current op {current_operator}")
-            if current_operator == None:
-                current_operator = prereq.prefixed_operator
-            elif current_operator != prereq.prefixed_operator:
-                new_group = [ClassGroup.combine_prereqs(current_grouping)]
-                current_grouping = new_group
+        for prereq in prereqs:
+            if len(current_grouping) > 0:
+                match prereq.prefixed_operator:
+                    # `and` prefixed classes get added to the current group
+                    case Operator.And:
+                        pass
+                    # `or` operators flush the current group and get added to
+                    # the parsed output
+                    case Operator.Or:
+                        print(f"Test: {current_grouping}")
+                        # TODO: Test what's already on the stack, if there is an `or`
+                        if len(current_grouping) == 1:
+                            parsed.nested_classes.append(current_grouping[-1])
+                        elif len(current_grouping) > 0:
+                            parsed.nested_classes.append(
+                                ClassGroup.combine_prereqs(current_grouping)
+                            )
+                        current_grouping = []
 
-            current_operator = prereq.prefixed_operator
             current_grouping.append(prereq)
 
-        parsed.nested_classes = current_grouping
-        parsed.prefixed_operator = current_operator
+        # At the end of the iteration, there are two cases:
+        # * The list contains one or more `and` grouped elements, which we have
+        #   to combine and add to the list of parsed classes
+        # * The list contains an `or` element, where we add it to the list of
+        #   parsed classes
+
+        # We also should never have an empty list
+        assert len(current_grouping) != 0
+
+        print(f"After initial: {current_grouping}, {parsed}")
+
+        match current_grouping[-1].prefixed_operator:
+            case Operator.And:
+                # If there are no other parsed elements, this is a purely an `and` group,
+                # which we need to update directly
+                #
+                # Otherwise, we add a new element to the end
+                result = ClassGroup(op=Operator.And)
+                result.nested_classes = current_grouping
+
+                if len(parsed.nested_classes) > 0:
+                    print("Other classes, appending and group")
+                    parsed.nested_classes.append(result)
+                else:
+                    print("Only and group, directly writing")
+                    parsed = result
+            case Operator.Or:
+                # There should only ever be one `or` statement at a time
+                assert len(current_grouping) == 1
+
+                parsed.nested_classes.append(current_grouping[-1])
 
         return parsed
 
@@ -81,7 +115,7 @@ class ClassGroup(ParsedPrerequisite):
         self,
         *nested_classes: List[ParsedPrerequisite],
         op: Operator | None = None,
-    ):
+    ) -> None:
         self.nested_classes = list(nested_classes)
         self.prefixed_operator = op
 
