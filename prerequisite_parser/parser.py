@@ -15,7 +15,7 @@ def parse_prerequisites(text: str) -> ParsedPrerequisite:
     assert type(text) == str
     start_index = 0
 
-    parsed = []
+    parsed: List[ParsedPrerequisite] = []
 
     index = 0
     while index < len(text):
@@ -36,6 +36,9 @@ def parse_prerequisites(text: str) -> ParsedPrerequisite:
             case _ if index == len(text) - 1:
                 parsed.append(parse_single_course(text[start_index : index + 1]))
         index += 1
+
+    # Mark the first element as the start of the group
+    parsed[0].is_leading = True
 
     if len(parsed) > 1:
         return ClassGroup.combine_prereqs(parsed)

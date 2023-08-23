@@ -17,7 +17,7 @@ class TestPrerequiteParsing(unittest.TestCase):
 
         parsed = parse_prerequisite_list(input)
 
-        self.assertEqual(parsed.to_json(), expeced.to_json())
+        self.assertEqual(parsed.to_json(), expected.to_json())
 
     def test_simple(self):
         input = [
@@ -70,7 +70,7 @@ class TestPrerequiteParsing(unittest.TestCase):
 
         parsed = parse_prerequisite_list(input)
 
-        self.assertEqual(parsed.to_json(), expected.to_json(), msg=msg)
+        self.assertEqual(parsed.to_json(), expected.to_json())
 
     def test_machine_learning(self):
         input = [
@@ -155,7 +155,6 @@ class TestPrerequiteParsing(unittest.TestCase):
 
         msg = str(parsed.to_json())
 
-        print(parsed.to_json())
         self.maxDiff = None
         self.assertEqual(parsed.to_json(), expected.to_json(), msg=msg)
 

@@ -23,11 +23,11 @@ class Operator(Enum):
 
 class ParsedPrerequisite:
     prefixed_operator: Operator | None = None
+    is_leading: bool = False
 
 
 class SingleClass(ParsedPrerequisite):
     class_name: str
-    is_leading: bool
 
     def __init__(
         self, class_name: str, prefixed_operator: Operator | None = None
@@ -39,7 +39,7 @@ class SingleClass(ParsedPrerequisite):
         return self.__dict__()
 
     def __repr__(self) -> str:
-        return f"SingleClass {{ prefixed_operator: {self.prefixed_operator}, class_name: {self.class_name} }}"
+        return f"SingleClass {{ prefixed_operator: {self.prefixed_operator}, class_name: {self.class_name}, leading: {self.is_leading} }}"
 
     def __dict__(self) -> Dict[str, Any]:
         return {"course": self.class_name, "type": "course"}
@@ -47,14 +47,13 @@ class SingleClass(ParsedPrerequisite):
 
 class ClassGroup(ParsedPrerequisite):
     nested_classes: List[ParsedPrerequisite]
+    group_type: Operator
 
     @staticmethod
     def combine_prereqs(prereqs: List[ParsedPrerequisite]) -> Self:
         current_grouping = []
 
         parsed = ClassGroup(op=Operator.Or)
-
-        print(f"Start: {parsed}, prereqs: {prereqs}")
 
         for prereq in prereqs:
             if len(current_grouping) > 0:
@@ -65,15 +64,24 @@ class ClassGroup(ParsedPrerequisite):
                     # `or` operators flush the current group and get added to
                     # the parsed output
                     case Operator.Or:
-                        print(f"Test: {current_grouping}")
                         # TODO: Test what's already on the stack, if there is an `or`
-                        if len(current_grouping) == 1:
-                            parsed.nested_classes.append(current_grouping[-1])
-                        elif len(current_grouping) > 0:
-                            parsed.nested_classes.append(
-                                ClassGroup.combine_prereqs(current_grouping)
-                            )
-                        current_grouping = []
+                        if len(current_grouping) > 0:
+                            most_recent = current_grouping[-1]
+                            # If there is an `and` in the current group, flush it
+                            if (
+                                most_recent.prefixed_operator == Operator.And
+                                and not most_recent.is_leading
+                            ):
+                                parsed.nested_classes.append(
+                                    ClassGroup.combine_prereqs(current_grouping)
+                                )
+                            # Otherwise, add it to the parsed output
+                            else:
+                                assert len(current_grouping) == 1
+                                parsed.nested_classes.append(most_recent)
+
+                            # Whatever the case, flush the current group
+                            current_grouping = []
 
             current_grouping.append(prereq)
 
@@ -86,8 +94,6 @@ class ClassGroup(ParsedPrerequisite):
         # We also should never have an empty list
         assert len(current_grouping) != 0
 
-        print(f"After initial: {current_grouping}, {parsed}")
-
         match current_grouping[-1].prefixed_operator:
             case Operator.And:
                 # If there are no other parsed elements, this is a purely an `and` group,
@@ -98,10 +104,8 @@ class ClassGroup(ParsedPrerequisite):
                 result.nested_classes = current_grouping
 
                 if len(parsed.nested_classes) > 0:
-                    print("Other classes, appending and group")
                     parsed.nested_classes.append(result)
                 else:
-                    print("Only and group, directly writing")
                     parsed = result
             case Operator.Or:
                 # There should only ever be one `or` statement at a time
@@ -111,24 +115,44 @@ class ClassGroup(ParsedPrerequisite):
 
         return parsed
 
+    """
+    `prefixed_operator` represents the leading operator for a group, which is
+    different from the group's type
+
+    The operator differs in the fact that it represents what operator the group 
+    has been prefixed with
+    """
+
+    @property
+    def prefixed_operator(self) -> Operator | None:
+        if len(self.nested_classes) == 0:
+            return None
+
+        assert len(self.nested_classes) > 1
+
+        first_element = self.nested_classes[0]
+        if type(first_element) == ClassGroup:
+            return first_element.leading_operator()
+        return first_element.prefixed_operator
+
     def __init__(
         self,
         *nested_classes: List[ParsedPrerequisite],
         op: Operator | None = None,
     ) -> None:
         self.nested_classes = list(nested_classes)
-        self.prefixed_operator = op
+        self.group_type = op
 
     def to_json(self):
         return json.dumps(self.__dict__(), indent=2)
 
     def __repr__(self) -> str:
-        return f"ClassGroup {{ type: {self.prefixed_operator}, nested: {self.nested_classes} }}"
+        return (
+            f"ClassGroup {{ type: {self.group_type}, nested: {self.nested_classes} }}"
+        )
 
     def __dict__(self) -> Dict[str, Any]:
-        # print(type(self.nested_classes))
-        # print(self.nested_classes)
         return {
             "nested": list(map(lambda item: item.__dict__(), self.nested_classes)),
-            "type": str(self.prefixed_operator),
+            "type": str(self.group_type),
         }
