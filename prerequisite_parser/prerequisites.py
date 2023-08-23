@@ -132,7 +132,7 @@ class ClassGroup(ParsedPrerequisite):
 
         first_element = self.nested_classes[0]
         if type(first_element) == ClassGroup:
-            return first_element.leading_operator()
+            return first_element.prefixed_operator
         return first_element.prefixed_operator
 
     def __init__(
