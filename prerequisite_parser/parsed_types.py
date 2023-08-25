@@ -25,6 +25,9 @@ may_not_be: {self.may_not_be} }}"
 
         return output
 
+    def is_empty(self) -> bool:
+        return len(self.must_be) == 0 and len(self.may_not_be) == 0
+
     def __init__(self) -> None:
         self.must_be = []
         self.may_not_be = []
@@ -49,8 +52,7 @@ class ParsedClassPage:
     corequisites: List[str]
     prereqs: ParsedPrerequisite
     reserved: List[ParsedReservation]
-    # Not sure what this is used for
-    text_key: str
+    course_crn: int
 
     def __init__(
         self,
@@ -58,24 +60,26 @@ class ParsedClassPage:
         corequisites: List[str],
         prereqs: ParsedPrerequisite,
         reserved: List[ParsedReservation],
-        text_key: str = "",
+        course_crn: int,
     ) -> None:
         self.restrictions = restrictions
         self.corequisites = corequisites
         self.prereqs = prereqs
         self.reserved = reserved
-        self.text_key = text_key
+        self.course_crn = course_crn
 
     def to_json(self) -> Dict[str, Any]:
-        result = {}
+        result: Dict["str", Any] = {}
         if self.prereqs != None:
             result["prerequisites"] = self.prereqs.to_json()
-        if self.reserved != None:
+        if len(self.reserved) > 0:
             result["reserved"] = list(map(lambda item: item.to_json(), self.reserved))
-        result["corequisites"] = self.corequisites
-        result["restrictions"] = self.restrictions.to_json()
+        if len(self.corequisites) > 0:
+            result["corequisites"] = self.corequisites
+        if self.restrictions != None and not self.restrictions.is_empty():
+            result["restrictions"] = self.restrictions.to_json()
 
-        return result
+        return {str(self.course_crn): result}
 
     def __repr__(self) -> str:
         return f"ParsedClassPage {{ \
@@ -83,7 +87,7 @@ restrictions: {self.restrictions}, \
 corequisites: {self.corequisites}, \
 prereqs: {self.prereqs}, \
 reserved: {self.reserved}, \
-text_key: {self.text_key}}}"
+course_crn: {self.course_crn}}}"
 
 
 class ParsedReservation:
