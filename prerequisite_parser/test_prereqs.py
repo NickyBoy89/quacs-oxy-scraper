@@ -4,10 +4,6 @@ import json
 from .parser import parse_prerequisite_list, parse_prerequisites
 from .prerequisites import ParsedPrerequisite, SingleClass, ClassGroup, Operator
 
-# prerequisites = [['Math 120', 'or Math 124', 'or Math 128', 'or APBC', 'or OXMA'], ['and Phys 120', 'or Phys 125', 'or APPE']]
-# prerequisites = ['Math 101', 'and Math 100', 'and Math 201']
-# prerequisites = ["1", "and 2", "and 3", "or 4"]
-
 
 class TestPrerequiteParsing(unittest.TestCase):
     def test_single_class(self):
@@ -147,6 +143,27 @@ class TestPrerequiteParsing(unittest.TestCase):
                 op=Operator.Or,
             ),
             op=Operator.And,
+        )
+
+        parsed = parse_prerequisite_list(input)
+
+        self.assertEqual(parsed.to_json(), expected.to_json())
+
+    def test_unmatched_parenths(self):
+        input = ["( 1", "and 2", "(or 3", "or 4)"]
+
+        expected = ClassGroup(
+            ClassGroup(
+                SingleClass("1"),
+                SingleClass("2"),
+                op=Operator.And,
+            ),
+            ClassGroup(
+                SingleClass("3"),
+                SingleClass("4"),
+                op=Operator.Or,
+            ),
+            op=Operator.Or,
         )
 
         parsed = parse_prerequisite_list(input)

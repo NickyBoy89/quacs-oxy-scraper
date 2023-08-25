@@ -23,10 +23,10 @@ def parse_prerequisites(text: str) -> ParsedPrerequisite:
             case "(":
                 end = index_matching_parentheses(text, index)
                 text_block = text[index + 1 : end]
-                # print(f"Parsing the contents of: {text_block}")
-                result = parse_prerequisites(text_block)
-                # print(f"Received the resulting object: {result}")
-                parsed.append(result)
+                # If there is an unmatched parenths, skip parsing the area in its place
+                if len(text_block) > 0:
+                    result = parse_prerequisites(text_block)
+                    parsed.append(result)
                 index = end + 1
                 start_index = index
             case "\n":
@@ -65,7 +65,7 @@ def index_matching_parentheses(text: str, start_index: int) -> int:
                     return index
         index += 1
 
-    logging.warn("Could not find matching parethesies while parsing prerequisites")
+    logging.warning("Could not find matching parenthesies while parsing prerequisites")
     return start_index
 
 
@@ -73,8 +73,6 @@ def parse_single_course(text: str) -> SingleClass:
     words = text.strip("()\n").split(" ")
     # Remove empty strings
     words = list(filter(lambda item: item != "", words))
-
-    # print(f"Parsing [{words}]")
 
     operator: Operator | None = None
     match words:
