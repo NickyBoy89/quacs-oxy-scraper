@@ -1,8 +1,8 @@
+from __future__ import annotations
+
 import urllib3
 import requests
 import logging
-
-from __future__ import annotations
 
 import re
 
