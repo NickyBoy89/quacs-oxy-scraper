@@ -1,36 +1,36 @@
 import requests, json, re, sys
 from tqdm import tqdm
 
+from typing import List, Dict, Any
+
 # Import the script to create the mod.rs
-import mod_gen as modgen
+from sis import genmod
 
-# Import the scripts that talk with course counts
-import counts
-
-# Cache the http response (for local development)
-caching = False
+from course_counts import fetch_subject_list
 
 # You can manually specify a semester code for the script to use
 if len(sys.argv) > 1:
     term = sys.argv[1]
 else:
     with open("semesters.json") as semesters:
-        term = semesters.read().split("\n")[-2]
+        term = semesters.readlines()[-1].strip()
 
-dump = [] # The array that all the json data is going to be put into
+output: List[Dict[str, Any]] = []
 
-# Load all the subjects in to the array
-for subject in counts.subjects():
-    dump.append({'name': subject.text, 'code': subject['value'], 'courses': []})
+for subject in fetch_subject_list():
+    output.append({"name": subject.text, "code": subject["value"], courses: []})
 
 # Maps the course code to the course name (ex: AMST is mapped to American Studies)
 codeMapping = {}
 
-# Get the course catalog data to get some of the things that we have already generated
-with open('catalog.json') as catalogjson:
-    catalogData = json.load(catalogjson)
+catalog_data: Dict[str, Dict[str, Any]] = {}
 
-def timeToMilitary(time, useStartTime):
+# Get the course catalog data to get some of the things that we have already generated
+with open("catalog.json") as catalog_json:
+    catalog_data = json.load(catalog_json)
+
+
+def time_to_military(time: str, useStartTime: bool) -> int:
     if "TBD" in time:
         return -1
     if useStartTime:
@@ -43,19 +43,20 @@ def timeToMilitary(time, useStartTime):
         offset = 1200
     return int("".join(time.strip().split(":"))[:4]) + offset
 
+
 # Parses the raw HTML from each class row
 def getClassDataFromRow(data):
     # All the data is stored in tds nested in the html
-    tds = data.findAll('td')
+    tds = data.findAll("td")
 
     # Get the name of the course (ex: WRD 301 0), which contains the subject, the course code, and section number
     courseName = tds[1].text
     # Split the name into its three parts
     nameParts = courseName.split(" ")
-    subj = nameParts[0] # Subject (ex: WRD)
-    crse = nameParts[1] # Course code (ex: 301)
-    sec = nameParts[2] # Section number (ex: 0)
-    crn = tds[0].findChildren('a', recursive=False)[0].text
+    subj = nameParts[0]  # Subject (ex: WRD)
+    crse = nameParts[1]  # Course code (ex: 301)
+    sec = nameParts[2]  # Section number (ex: 0)
+    crn = tds[0].findChildren("a", recursive=False)[0].text
 
     # Get enrollment numbers
     maxSeats = tds[-5].text
@@ -65,49 +66,49 @@ def getClassDataFromRow(data):
     # Ex: 1 -> 01
     try:
         if int(sec) < 10:
-            sec = '0' + sec
+            sec = "0" + sec
     except:
         pass
     credMin = tds[3].text
     credMax = tds[3].text
     title = tds[2].text
     # No attribute or description
-    attribute = ''
-    description = ''
+    attribute = ""
+    description = ""
 
     # A list of all days that the class is on (ex: ['M', 'W', 'F'])
     days = []
 
     timeslots = {
-        'days': days,
-        'instructor': 'Instructor-TBD',
-        'location': '',
+        "days": days,
+        "instructor": "Instructor-TBD",
+        "location": "",
     }
 
     # If there is a professor specified (not TBD)
-    if data.find('abbr') != None:
-        timeslots['instructor'] = data.find('abbr')['title']
+    if data.find("abbr") != None:
+        timeslots["instructor"] = data.find("abbr")["title"]
 
     timingData = []
-    if data.find('table', {'cellpadding': '2'}) != None:
+    if data.find("table", {"cellpadding": "2"}) != None:
         # Timing data gives the times in the first element, and the days in the second
-        timingData = data.find('table', {'cellpadding': '2'}).findAll('td')
+        timingData = data.find("table", {"cellpadding": "2"}).findAll("td")
         # If the days is TBD, keep it as an empty list
         if timingData[1].text != "Days-TBD":
             # Go over the days and add them to days (ex: MWF -> ['M', 'W', 'F'])
-            timeslots['timeStart'] = timeToMilitary(timingData[0].text, True)
-            timeslots['timeEnd'] = timeToMilitary(timingData[0].text, False)
+            timeslots["timeStart"] = timeToMilitary(timingData[0].text, True)
+            timeslots["timeEnd"] = timeToMilitary(timingData[0].text, False)
             for day in timingData[1].text:
                 days.append(day)
 
     # Hardcoded semester start and end dates
-    if term[-2:] == "01": # Fall
+    if term[-2:] == "01":  # Fall
         timeslots["dateStart"] = "8/24"
         timeslots["dateEnd"] = "11/20"
-    elif term[-2:] == "02": # Spring
+    elif term[-2:] == "02":  # Spring
         timeslots["dateStart"] = "1/19"
         timeslots["dateEnd"] = "4/27"
-    elif term[-2:] == "03": # Summer
+    elif term[-2:] == "03":  # Summer
         timeslots["dateStart"] = "5/1"
         timeslots["dateEnd"] = "8/6"
 
@@ -124,6 +125,42 @@ def getClassDataFromRow(data):
         "attribute": attribute,
         "timeslots": timeslots,
     }
+
+
+class Timeslot:
+    pass
+
+
+class CourseDescription:
+    crn: int
+    subj: str
+    crse: str
+    sec: str
+    credMin: int
+    credMax: int
+    title: str
+    # Capacity of the course
+    max_seats: int
+    # Seats accounted for
+    enrolled: int
+    attribute: str
+    timeslots: List[Timeslot]
+
+    def to_json(self) -> Dict[str, Any]:
+        return {
+            "crn": self.crn,
+            "subj": self.subj,
+            "crse": self.crse,
+            "credMin": self.credMin,
+            "credMax": self.credMax,
+            "title": self.title,
+            "cap": self.maxSeats,
+            "act": self.enrolled,
+            "rem": self.maxSeats - self.enrolled,
+            "attribute": self.attribute,
+            "timeslots": self.timeslots,
+        }
+
 
 # Formats the parsed class row data into the final format
 def addCourse(course):
@@ -142,8 +179,9 @@ def addCourse(course):
         # Remaining seats (capacity - act) if there isn't any overassignment
         "rem": int(course["maxSeats"]) - int(course["enrolled"]),
         "attribute": course["attribute"],
-        "timeslots": [course["timeslots"]]
+        "timeslots": [course["timeslots"]],
     }
+
 
 # Puts the raw data from each row into json format
 def insertClassDataIntoJson(rowData):
@@ -157,19 +195,24 @@ def insertClassDataIntoJson(rowData):
                     dump[di]["courses"][ci]["sections"].append(addCourse(classData))
                     return
             # If there was no previous sections found, then add it as the first section
-            dump[di]['courses'].append({
-                "title": classData["title"],
-                "subj": classData["subj"],
-                "crse": classData["crse"],
-                "id": f"{classData['subj']}-{classData['crse']}",
-                "sections": [addCourse(classData)]
-            })
+            dump[di]["courses"].append(
+                {
+                    "title": classData["title"],
+                    "subj": classData["subj"],
+                    "crse": classData["crse"],
+                    "id": f"{classData['subj']}-{classData['crse']}",
+                    "sections": [addCourse(classData)],
+                }
+            )
+
 
 response = counts.allCourses(caching, term)
 
 print("Going through courses")
 # Go through all the rows in the response and load them into JSON
-for i in (response.findAll('tr', {'style': 'background-color:#C5DFFF;font-size:X-Small;'}) + response.findAll('tr', {'style': 'background-color:White;font-size:X-Small;'})):
+for i in response.findAll(
+    "tr", {"style": "background-color:#C5DFFF;font-size:X-Small;"}
+) + response.findAll("tr", {"style": "background-color:White;font-size:X-Small;"}):
     insertClassDataIntoJson(i)
 print("Done going through courses")
 
