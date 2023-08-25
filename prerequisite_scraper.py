@@ -5,6 +5,8 @@ from tqdm import tqdm
 from os import path
 import urllib3
 
+from multiprocessing import Pool
+
 from typing import List, Dict, Any
 
 from prerequisite_parser import (
@@ -52,10 +54,12 @@ def parse_class_page_data(
     )
     response = BeautifulSoup(class_response.text, "html.parser")
 
-    restrictions: List[str] = []
+    crn = int(parsed_class_row.find("a").text)
+
+    restrictions: ParsedRestriction | None = None
     corequisites: List[str] = []
     prerequisites: ParsedPrerequisite | None = None
-    reserved: List[str] = []
+    reserved: List[ParsedReservation] = []
 
     restrictions_panel = response.find(id="restrictionsPanel")
     corequisites_panel = response.find(id="corequisitesPanel")
@@ -88,7 +92,7 @@ def parse_class_page_data(
         corequisites=corequisites,
         prereqs=prerequisites,
         reserved=reserved,
-        text_key="",
+        course_crn=crn,
     )
 
 
@@ -126,12 +130,23 @@ class_rows = all_courses.find("table", id="gvResults").find_all("tr", recursive=
 
 ctx = CourseCountsContext.parse_courses(all_courses)
 
-for class_row in class_rows:
-    print(parse_class_page_data(class_row, session, ctx).to_json())
+parsed: List[ParsedClassPage] = []
 
-parsed: Dict[str, Any] = {}
+
+for class_row in tqdm(class_rows):
+    parsed.append(parse_class_page_data(class_row, session, ctx))
+
+# Merge all the parsed class pages into one
+merged: Dict[str, Any] = {}
+for course in parsed:
+    merged = merged | course.to_json()
 
 # Saving data into json file
 # print(json.dumps(dump, indent=4, sort_keys=True))
 with open(f"prerequisites.json", "w") as outfile:
-    json.dump(parsed, outfile, sort_keys=True, indent=2)
+    json.dump(
+        merged,
+        outfile,
+        sort_keys=True,
+        indent=2,
+    )
