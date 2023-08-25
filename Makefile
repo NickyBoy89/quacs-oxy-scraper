@@ -1,7 +1,7 @@
 PY=python3
 
 .PHONY: all
-all: semesters.json catalog faculty prerequisites sis
+all: semesters.json catalog.json prerequisites.json sis.json schools.json faculty.json
 
 semesters.json: semesters.py
 	$(PY) semesters.py

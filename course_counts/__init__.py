@@ -2,6 +2,8 @@ import urllib3
 import requests
 import logging
 
+from __future__ import annotations
+
 import re
 
 from bs4 import BeautifulSoup
@@ -35,7 +37,7 @@ class CourseCountsContext:
         self.view_state_encrypted = view_state_encrypted
         self.event_validation = event_validation
 
-    def parse(source: BeautifulSoup) -> Self:
+    def parse(source: BeautifulSoup) -> CourseCountsContext:
         return CourseCountsContext(
             client_state=source.find(id="tabContainer_ClientState")["value"],
             view_state=source.find(id="__VIEWSTATE")["value"],
@@ -44,7 +46,7 @@ class CourseCountsContext:
             event_validation=source.find(id="__EVENTVALIDATION")["value"],
         )
 
-    def parse_courses(source: BeautifulSoup) -> Self:
+    def parse_courses(source: BeautifulSoup) -> CourseCountsContext:
         # These values are embedded in the source of the page, so they need to
         # be extracted
         return CourseCountsContext(
