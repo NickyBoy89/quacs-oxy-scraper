@@ -5,11 +5,12 @@ from tqdm import tqdm
 from os import path
 import urllib3
 
-from typing import List
+from typing import List, Dict, Any
 
 from prerequisite_parser import (
     ParsedClassPage,
     ParsedReservation,
+    ParsedPrerequisite,
     ParsedRestrictions,
     parse_prerequisites,
 )
@@ -37,14 +38,12 @@ def parse_class_page_data(
     parsed_class_row: NavigableString,
     session: Session,
     session_context: CourseCountsContext,
-) -> List[ParsedClassPage]:
+) -> ParsedClassPage:
     class_request_body = make_individual_class_body(
         parsed_class_row,
         current_semester,
         ctx,
     )
-
-    # print(class_request_body)
 
     class_response = session.post(
         url=COURSE_COUNTS_HOMEPAGE,
@@ -55,15 +54,13 @@ def parse_class_page_data(
 
     restrictions: List[str] = []
     corequisites: List[str] = []
-    prerequisites: List[str] = []
+    prerequisites: ParsedPrerequisite | None = None
     reserved: List[str] = []
 
     restrictions_panel = response.find(id="restrictionsPanel")
     corequisites_panel = response.find(id="corequisitesPanel")
     prereqs_panel = response.find(id="prereqsPanel")
     reserved_panel = response.find(id="resvDetailsPanel")
-
-    # print(restrictions_panel, corequisites_panel, prereqs_panel, reserved_panel)
 
     if restrictions_panel != None:
         restrictions = ParsedRestrictions.parse(
@@ -129,13 +126,12 @@ class_rows = all_courses.find("table", id="gvResults").find_all("tr", recursive=
 
 ctx = CourseCountsContext.parse_courses(all_courses)
 
-for class_row in tqdm(class_rows):
-    print(parse_class_page_data(class_row, session, ctx))
+for class_row in class_rows:
+    print(parse_class_page_data(class_row, session, ctx).to_json())
 
+parsed: Dict[str, Any] = {}
 
 # Saving data into json file
 # print(json.dumps(dump, indent=4, sort_keys=True))
-with open(f"prerequisites.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
-    json.dump(dump, outfile, sort_keys=True, indent=2)
-
-print(time.time() - start)
+with open(f"prerequisites.json", "w") as outfile:
+    json.dump(parsed, outfile, sort_keys=True, indent=2)

@@ -1,7 +1,9 @@
-import json
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
 
 from enum import Enum, unique
-from typing import List, Self, Dict, Any
+from typing import List, Self, Dict, Tuple, Any, Iterable
 
 
 @unique
@@ -10,7 +12,7 @@ class Operator(Enum):
     And = 2
 
     @staticmethod
-    def parse(text: str) -> Self:
+    def parse(text: str) -> Operator:
         if text == "or":
             return Operator.Or
         elif text == "and":
@@ -25,6 +27,10 @@ class ParsedPrerequisite:
     prefixed_operator: Operator | None = None
     is_leading: bool = False
 
+    @abstractmethod
+    def to_json(self) -> Dict[str, Any]:
+        pass
+
 
 class SingleClass(ParsedPrerequisite):
     class_name: str
@@ -36,22 +42,19 @@ class SingleClass(ParsedPrerequisite):
         self.prefixed_operator = prefixed_operator
 
     def to_json(self):
-        return self.__dict__()
+        return {"course": self.class_name, "type": "course"}
 
     def __repr__(self) -> str:
         return f"SingleClass {{ prefixed_operator: {self.prefixed_operator}, class_name: {self.class_name}, leading: {self.is_leading} }}"
 
-    def __dict__(self) -> Dict[str, Any]:
-        return {"course": self.class_name, "type": "course"}
-
 
 class ClassGroup(ParsedPrerequisite):
     nested_classes: List[ParsedPrerequisite]
-    group_type: Operator
+    group_type: Operator | None
 
     @staticmethod
-    def combine_prereqs(prereqs: List[ParsedPrerequisite]) -> Self:
-        current_grouping = []
+    def combine_prereqs(prereqs: List[ParsedPrerequisite]) -> ClassGroup:
+        current_grouping: List[ParsedPrerequisite] = []
 
         parsed = ClassGroup(op=Operator.Or)
 
@@ -135,24 +138,25 @@ class ClassGroup(ParsedPrerequisite):
             return first_element.prefixed_operator
         return first_element.prefixed_operator
 
+    @prefixed_operator.setter
+    def prefixed_operator(self, value) -> None:
+        raise Exception("Tried to set prefixed operator of group")
+
     def __init__(
         self,
-        *nested_classes: List[ParsedPrerequisite],
+        *nested_classes: ParsedPrerequisite,
         op: Operator | None = None,
     ) -> None:
         self.nested_classes = list(nested_classes)
         self.group_type = op
 
     def to_json(self):
-        return json.dumps(self.__dict__(), indent=2)
+        return {
+            "nested": list(map(lambda item: item.to_json(), self.nested_classes)),
+            "type": str(self.group_type),
+        }
 
     def __repr__(self) -> str:
         return (
             f"ClassGroup {{ type: {self.group_type}, nested: {self.nested_classes} }}"
         )
-
-    def __dict__(self) -> Dict[str, Any]:
-        return {
-            "nested": list(map(lambda item: item.__dict__(), self.nested_classes)),
-            "type": str(self.group_type),
-        }
