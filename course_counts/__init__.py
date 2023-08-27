@@ -81,3 +81,4 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 from .counts import *
 from .counts_requests import *
+from .term_codes import TermCode
