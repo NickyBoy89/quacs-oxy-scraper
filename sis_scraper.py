@@ -3,14 +3,17 @@ from __future__ import annotations
 import requests, json, re, sys
 from tqdm import tqdm
 
+from bs4 import NavigableString
+
 import requests
 
 from typing import List, Dict, Any
 
 # Import the script to create the mod.rs
-from sis import genmod
+import sis
 
 from course_counts import (
+    fetch_landing_page,
     fetch_subject_list,
     fetch_all_courses,
     CourseCountsContext,
@@ -43,7 +46,7 @@ with open("catalog.json") as catalog_json:
 def time_to_military(time: str, use_start_time: bool) -> int:
     if "TBD" in time:
         return -1
-    if useStartTime:
+    if use_start_time:
         time = time.split("-")[0]
     else:
         time = time.split("-")[1]
@@ -66,7 +69,7 @@ def get_class_data_from_row(data: NavigableString) -> CourseDescription:
         max_seats,
         enrolled_seats,
         *_,
-    ) = data.find_all("td")
+    ) = data.find_all("td", recursive=False)
 
     # The name of the course contains the subject, course code, the section number, and related courses
     # For example: COMP 131 1 means:
@@ -82,7 +85,7 @@ def get_class_data_from_row(data: NavigableString) -> CourseDescription:
     #   * The first 2 means it belongs to the second section
     #   * The second 2 means it is the second section of that lab class
 
-    course_subject, course_code, section, *_ = course_name.split(" ")
+    course_subject, course_code, section, *_ = course_name.text.split(" ")
 
     section_number: int
     lab_related_section: int | None = None
@@ -94,13 +97,13 @@ def get_class_data_from_row(data: NavigableString) -> CourseDescription:
     course = CourseDescription()
     course.crn = int(crn.find("a", recursive=False).text)
     course.subj = course_subject
-    course.crse = int(course_code)
+    course.crse = course_code
     course.sec = section
-    course.credMin = int(unit_count)
-    course.credMax = int(unit_count)
-    course.title = course_title
-    course.max_seats = int(max_seats)
-    course.enrolled = int(enrolled_seats)
+    course.credMin = int(unit_count.text)
+    course.credMax = int(unit_count.text)
+    course.title = course_title.text
+    course.max_seats = int(max_seats.text)
+    course.enrolled = int(enrolled_seats.text)
 
     # Leave the attribute blank
     course.attribute = ""
@@ -119,7 +122,7 @@ def get_class_data_from_row(data: NavigableString) -> CourseDescription:
     # If the days is TBD, keep it as an empty list
     if course_days.text != "Days-TBD":
         timeslots.start_time = time_to_military(course_times.text, use_start_time=True)
-        timeslots.end_time = time_to_military(course_times.text, use_start_times=False)
+        timeslots.end_time = time_to_military(course_times.text, use_start_time=False)
 
         timeslots.days = list(course_days.text)
 
@@ -134,31 +137,36 @@ def get_class_data_from_row(data: NavigableString) -> CourseDescription:
 
 
 class Timeslot:
-    days: List[str]
+    days: List[str] = []
     instructor: str = "Instructor-TBD"
-    start_time: int
-    end_time: int
+    start_time: int | None = None
+    end_time: int | None = None
     start_date: str
     end_date: str
 
     def to_json(self) -> Dict[str, Any]:
-        return {
+        result: Dict[str, Any] = {
             "days": self.days,
             "instructor": self.instructor,
             "location": "",
-            "timeStart": self.start_time,
-            "timeEnd": self.end_time,
-            "dateStart": self.start_date,
-            "dateEnd": self.end_date,
         }
+
+        if self.days != []:
+            result["timeStart"] = self.start_time
+            result["timeEnd"] = self.end_time
+
+        result["dateStart"] = self.start_date
+        result["dateEnd"] = self.end_date
+
+        return result
 
 
 class CourseDescription:
     crn: int
     # Course subject, ex: COMP
     subj: str
-    # Course number, ex: 131
-    crse: int
+    # Course number, ex: 131 or 131L
+    crse: str
     sec: str
     credMin: int
     credMax: int
@@ -184,59 +192,16 @@ class CourseDescription:
             "crn": self.crn,
             "subj": self.subj,
             "crse": self.crse,
+            "sec": self.sec,
             "credMin": self.credMin,
             "credMax": self.credMax,
             "title": self.title,
-            "cap": self.maxSeats,
+            "cap": self.max_seats,
             "act": self.enrolled,
-            "rem": self.maxSeats - self.enrolled,
+            "rem": self.max_seats - self.enrolled,
             "attribute": self.attribute,
             "timeslots": list(map(lambda item: item.to_json(), self.timeslots)),
         }
-
-
-# Formats the parsed class row data into the final format
-def addCourse(course):
-    return {
-        "crn": int(course["crn"]),
-        "subj": course["subj"],
-        "crse": course["crse"],
-        "sec": course["sec"],
-        "credMin": int(course["credMin"]),
-        "credMax": int(course["credMax"]),
-        "title": course["title"],
-        # Capacity of the course
-        "cap": int(course["maxSeats"]),
-        # Seats accounted for
-        "act": int(course["enrolled"]),
-        # Remaining seats (capacity - act) if there isn't any overassignment
-        "rem": int(course["maxSeats"]) - int(course["enrolled"]),
-        "attribute": course["attribute"],
-        "timeslots": [course["timeslots"]],
-    }
-
-
-# Puts the raw data from each row into json format
-def insertClassDataIntoJson(rowData):
-    classData = getClassDataFromRow(rowData)
-    # Go through the generated JSON to find the department to add the course to
-    for di, department in enumerate(dump):
-        if department["code"] == classData["subj"]:
-            # If the course is already there, add it to the list of sections
-            for ci, course in enumerate(department["courses"]):
-                if course["crse"] == classData["crse"]:
-                    dump[di]["courses"][ci]["sections"].append(addCourse(classData))
-                    return
-            # If there was no previous sections found, then add it as the first section
-            dump[di]["courses"].append(
-                {
-                    "title": classData["title"],
-                    "subj": classData["subj"],
-                    "crse": classData["crse"],
-                    "id": f"{classData['subj']}-{classData['crse']}",
-                    "sections": [addCourse(classData)],
-                }
-            )
 
 
 session = requests.Session()
@@ -254,7 +219,7 @@ class_rows = all_courses.find("table", id="gvResults").find_all("tr", recursive=
 ]
 
 for row in tqdm(class_rows):
-    course_description = get_class_date_from_row(row)
+    course_description = get_class_data_from_row(row)
     for department in output:
         if department["code"] == course_description.subj:
             # There are two cases:
@@ -263,7 +228,7 @@ for row in tqdm(class_rows):
             # * Or, a new header is generated for the course, and the course is added
 
             existing_course_codes = list(
-                map(lambda course: course.crse, department["courses"])
+                map(lambda course: course["crse"], department["courses"])
             )
 
             # If the course already exists, add it to the list of sections
@@ -277,16 +242,12 @@ for row in tqdm(class_rows):
             except ValueError:  # The course does not already exist
                 department["courses"].append(course_description.generate_header())
 
-print(output)
-
-exit(1)
-
 # Generate the mod.rs file from the data
 print("Generating mod.rs")
-modgen.genmod(dump, None)
+sis.genmod(output, None)
 print("Done generating mod.rs")
 
 # Saving data into json file
 # print(json.dumps(dump, indent=4, sort_keys=True))
 with open(f"courses.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
-    json.dump(dump, outfile, sort_keys=False, indent=2)
+    json.dump(output, outfile, sort_keys=False, indent=2)
