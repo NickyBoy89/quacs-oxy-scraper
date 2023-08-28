@@ -17,7 +17,7 @@ def getFacultyInfo(soup):
     url = soup.find("a")["href"]  # Get link to faculty member page
 
     profilePage = BeautifulSoup(
-        requests.get(f"https://www.oxy.edu{url}").text.encode("UTF-8"), "lxml"
+        requests.get(f"https://www.oxy.edu{url}").text.encode("UTF-8"), "html.parser"
     )
     portrait = profilePage.findAll("img")[2][
         "src"
@@ -76,7 +76,7 @@ def getFacultyInfo(soup):
 
 faculty = requests.get("https://www.oxy.edu/academics/faculty/faculty-index")
 
-soup = BeautifulSoup(faculty.text.encode("UTF-8"), "lxml")
+soup = BeautifulSoup(faculty.text.encode("UTF-8"), "html.parser")
 
 # print(soup.find('div', {'class': 'view-content'}).findAll('div', {'class': 'views-row'})[0])
 

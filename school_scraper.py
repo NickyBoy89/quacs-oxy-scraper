@@ -59,40 +59,45 @@ school_groupings = {
     "Literature": [
         "English",
         "Writing & Rhetoric",
-    ]
+    ],
 }
 
 # For passing in a custom semester (such as through the generation script)
-if (len(sys.argv) > 1):
+if len(sys.argv) > 1:
     term = sys.argv[1]
 else:
     with open("semesters.json") as semesters:
         term = semesters.read().split("\n")[-2]
 
-termYears = [str(int(term[:4]) - 1), term[:4]] # Get the academic year based on the term code (ex: 2019-2020)
+termYears = [
+    str(int(term[:4]) - 1),
+    term[:4],
+]  # Get the academic year based on the term code (ex: 2019-2020)
 
 # The catalog changes format for years before 2018
-if (int(termYears[0]) < 2018):
-    url = f'https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Courses'
+if int(termYears[0]) < 2018:
+    url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Courses"
 else:
-    url = f'https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Course-Descriptions'
+    url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Course-Descriptions"
 
 print("Scraping " + url)
+
 
 # Extract the school names and acronym from the page (ex: Mathematics and MATH)
 def getSchoolsFromUrl(url):
     data = []
-    soup = BeautifulSoup(requests.get(url=url).text.encode('UTF-8'), 'lxml')
-    if soup.find('div', {'id': 'main'}) != None:
-        for i in soup.find('div', {'id': 'main'}).findNext('ul').findChildren('li'):
-            data.append(i.find('a'))
+    soup = BeautifulSoup(requests.get(url=url).text.encode("UTF-8"), "html.parser")
+    if soup.find("div", {"id": "main"}) != None:
+        for i in soup.find("div", {"id": "main"}).findNext("ul").findChildren("li"):
+            data.append(i.find("a"))
     return data
+
 
 schools = []
 
 for rawSchool in getSchoolsFromUrl(url):
-    school = rawSchool.text.split("-") # Split out the Name from the acronym
-    if len(school) < 2: # If there is a parser error, skip the schoool
+    school = rawSchool.text.split("-")  # Split out the Name from the acronym
+    if len(school) < 2:  # If there is a parser error, skip the schoool
         continue
     school_name = school[1].strip()
     school_code = school[0].strip()
@@ -104,51 +109,59 @@ for rawSchool in getSchoolsFromUrl(url):
         # If the name of the school is in the group
         if school_name in school_groupings[group_name]:
             if len(schools) == 0:
-                schools.append({
-                    "name": group_name,
-                    "depts": [
-                        {
-                            "code": school_code,
-                            "name": school_name,
-                        }
-                    ]
-                })
+                schools.append(
+                    {
+                        "name": group_name,
+                        "depts": [
+                            {
+                                "code": school_code,
+                                "name": school_name,
+                            }
+                        ],
+                    }
+                )
                 added = True
                 break
 
             # Look through all the generated schools to find the group that has already been generated
             for generated_school in enumerate(schools):
                 if generated_school[1]["name"] == group_name:
-                    schools[generated_school[0]]["depts"].append({
-                        "code": school_code,
-                        "name": school_name,
-                    })
+                    schools[generated_school[0]]["depts"].append(
+                        {
+                            "code": school_code,
+                            "name": school_name,
+                        }
+                    )
                     added = True
                     break
             if added:
                 break
             # If there is no pre-generated group found, generate it
-            schools.append({
-                "name": group_name,
+            schools.append(
+                {
+                    "name": group_name,
+                    "depts": [
+                        {
+                            "code": school_code,
+                            "name": school_name,
+                        }
+                    ],
+                }
+            )
+            added = True
+    # Add the school normally
+    if not added:
+        schools.append(
+            {
+                "name": school_name,
                 "depts": [
                     {
                         "code": school_code,
                         "name": school_name,
                     }
-                ]
-            })
-            added = True
-    # Add the school normally
-    if not added:
-        schools.append({
-            "name": school_name,
-            "depts": [
-                {
-                    "code": school_code,
-                    "name": school_name,
-                }
-            ]
-        })
+                ],
+            }
+        )
     added = False
 
 

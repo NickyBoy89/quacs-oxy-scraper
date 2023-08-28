@@ -6,8 +6,8 @@ This was written both before and after I took Data Structures at my school, so a
 
 # Requirements
 
-1. Python 3
-1. The python packages `requests bs4 lxml tqdm json re`
+1. Python 3.11+
+1. The python packages `pip install -r requirements.txt`
 
 # How the data comes together
 
