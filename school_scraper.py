@@ -1,171 +1,161 @@
-import requests, json, re, sys
-from bs4 import BeautifulSoup
+import json, sys
 from tqdm import tqdm
 
-import concurrent.futures
+from typing import List, Dict, Any, Tuple
+
+from enum import Enum, unique
+
+from course_catalog import CatalogUrl, get_majors_from_homepage
+
+
+@unique
+class MajorGroup(Enum):
+    ForeignLang = "Foreign Languages and Studies"
+    Humanities = "Humanities, Arts, and Social Sciences"
+    Politics = "Politics and Public Relations"
+    Social = "Social Affairs"
+    Sciences = "Sciences"
+    Literature = "Literature"
+
 
 # Some default custom groupings that I thought were fitting to reduce the number of elements on the main page
 school_groupings = {
-    "Foreign Languages and Studies": [
-        "Arabic",
-        "French",
-        "German",
-        "Greek",
-        "Russian",
-        "Japanese Studies",
-        "Spanish",
-        "Latin",
-        "Latino/a and Latin American Studies",
-        "East Asian Studies",
-        "Chinese Studies",
-    ],
-    "Humanities, Arts, and Social Sciences": [
-        "Studio Art",
-        "Art History",
-        "Media Arts and Culture",
-        "Theater",
-        "Music",
-        "Music Applied Study",
-        "Comparative Studies in Literature and Culture",
-        "Economics",
-        "History",
-        "Philosophy",
-        "Sociology",
-        "Education",
-        "Religious Studies",
-        "Linguistics",
-    ],
-    "Politics and Public Relations": [
-        "Diplomacy & World Affairs",
-        "Politics",
-    ],
-    "Social Affairs": [
-        "Urban & Environmental Policy",
-        "Public Health",
-        "Critical Theory and Social Justice",
-    ],
-    "Sciences": [
-        "Biochemistry",
-        "Biology",
-        "Chemistry",
-        "Geology",
-        "Cognitive Science",
-        "Mathematics",
-        "Physics",
-        "Psychology",
-        "Computer Science",
-        "Kinesiology",
-    ],
-    "Literature": [
-        "English",
-        "Writing & Rhetoric",
-    ],
+    # Foreign Language
+    "Arabic": MajorGroup.ForeignLang,
+    "French": MajorGroup.ForeignLang,
+    "German": MajorGroup.ForeignLang,
+    "Greek": MajorGroup.ForeignLang,
+    "Russian": MajorGroup.ForeignLang,
+    "Japanese Studies": MajorGroup.ForeignLang,
+    "Spanish": MajorGroup.ForeignLang,
+    "Latin": MajorGroup.ForeignLang,
+    "Latino/a and Latin American Studies": MajorGroup.ForeignLang,
+    "East Asian Studies": MajorGroup.ForeignLang,
+    "Chinese Studies": MajorGroup.ForeignLang,
+    # Humanities
+    "Studio Art": MajorGroup.Humanities,
+    "Art History": MajorGroup.Humanities,
+    "Media Arts and Culture": MajorGroup.Humanities,
+    "Theater": MajorGroup.Humanities,
+    "Music": MajorGroup.Humanities,
+    "Music Applied Study": MajorGroup.Humanities,
+    "Comparative Studies in Literature and Culture": MajorGroup.Humanities,
+    "Economics": MajorGroup.Humanities,
+    "History": MajorGroup.Humanities,
+    "Philosophy": MajorGroup.Humanities,
+    "Sociology": MajorGroup.Humanities,
+    "Education": MajorGroup.Humanities,
+    "Religious Studies": MajorGroup.Humanities,
+    "Linguistics": MajorGroup.Humanities,
+    # Political Science
+    "Diplomacy & World Affairs": MajorGroup.Politics,
+    "Politics": MajorGroup.Politics,
+    # Social Affairs
+    "Urban & Environmental Policy": MajorGroup.Social,
+    "Public Health": MajorGroup.Social,
+    "Critical Theory and Social Justice": MajorGroup.Social,
+    # Sciences
+    "Biochemistry": MajorGroup.Sciences,
+    "Biology": MajorGroup.Sciences,
+    "Chemistry": MajorGroup.Sciences,
+    "Geology": MajorGroup.Sciences,
+    "Cognitive Science": MajorGroup.Sciences,
+    "Mathematics": MajorGroup.Sciences,
+    "Physics": MajorGroup.Sciences,
+    "Psychology": MajorGroup.Sciences,
+    "Computer Science": MajorGroup.Sciences,
+    "Kinesiology": MajorGroup.Sciences,
+    # Literature
+    "English": MajorGroup.Literature,
+    "Writing & Rhetoric": MajorGroup.Literature,
 }
 
-# For passing in a custom semester (such as through the generation script)
 if len(sys.argv) > 1:
     term = sys.argv[1]
 else:
     with open("semesters.json") as semesters:
+        # Get the last semester number, but remove the newline
         term = semesters.read().split("\n")[-2]
 
-termYears = [
-    str(int(term[:4]) - 1),
-    term[:4],
-]  # Get the academic year based on the term code (ex: 2019-2020)
+current_catalog_url = CatalogUrl()
+current_catalog_url.language = "en"
+current_catalog_url.root_url = "https://oxy.smartcatalogiq.com"
 
-# The catalog changes format for years before 2018
-if int(termYears[0]) < 2018:
-    url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Courses"
-else:
-    url = f"https://oxy.smartcatalogiq.com/en/{termYears[0]}-{termYears[1]}/Catalog/Course-Descriptions"
+# Get the academic year based on the term code
+# This is in the format of `202301`, where the first three characters are the year
+# and the rest are the semester code
+assert len(term) == 6
 
-print("Scraping " + url)
+current_catalog_url.current_year = int(term[:4])
 
+"""
+`parse_major_name` takes in a string representing the name of the major, and 
+returns a tuple containing the acronym for the major and its full name
 
-# Extract the school names and acronym from the page (ex: Mathematics and MATH)
-def getSchoolsFromUrl(url):
-    data = []
-    soup = BeautifulSoup(requests.get(url=url).text.encode("UTF-8"), "html.parser")
-    if soup.find("div", {"id": "main"}) != None:
-        for i in soup.find("div", {"id": "main"}).findNext("ul").findChildren("li"):
-            data.append(i.find("a"))
-    return data
+For example, this could be something such as:
+    `WRD - Writing & Rhetoric` -> Tuple["WRD", "Writing & Rhetoric"]
+"""
 
 
-schools = []
+def parse_major_name(raw_name: str) -> Tuple[str, str]:
+    short_name, full_name, *_ = raw_name.split("-")
+    return (short_name.strip(), full_name.strip())
 
-for rawSchool in getSchoolsFromUrl(url):
-    school = rawSchool.text.split("-")  # Split out the Name from the acronym
-    if len(school) < 2:  # If there is a parser error, skip the schoool
-        continue
-    school_name = school[1].strip()
-    school_code = school[0].strip()
 
-    added = False
+# Fetch the list of majors from the front of the catalog page
+# This will result in a dictionary of mappings of type Dict[str, CatalogUrl]
+# Where `str` is something such as `WRD - Writing & Rhetoric`
+majors = get_majors_from_homepage(current_catalog_url)
 
-    # If the name of the school is in the pre-generated groupings
-    for group_name in school_groupings:
-        # If the name of the school is in the group
-        if school_name in school_groupings[group_name]:
-            if len(schools) == 0:
-                schools.append(
+"""
+`groups` represents a list of group entries
+
+Each group entry is formatted as:
+{
+    "name": "Foreign Language and Studies",
+    "depts": [
+        {
+            "code": "ARAB",
+            "name": "Arabic"
+        }
+    ]
+}
+"""
+groups: List[Dict[str, Any]] = []
+
+# Add the preliminary groups to the list
+for group in MajorGroup:
+    groups.append({"name": group.value, "depts": []})
+
+for major_text in majors.keys():
+    major_code, major_name = parse_major_name(major_text)
+
+    major_group: str
+    # If there is a grouping for that major, place the major in that group
+    if major_name in school_groupings:
+        major_group = school_groupings[major_name].value
+        for group_index, group in enumerate(groups):
+            if group["name"] == major_group:
+                groups[group_index]["depts"].append(
                     {
-                        "name": group_name,
-                        "depts": [
-                            {
-                                "code": school_code,
-                                "name": school_name,
-                            }
-                        ],
+                        "code": major_code,
+                        "name": major_name,
                     }
                 )
-                added = True
-                break
-
-            # Look through all the generated schools to find the group that has already been generated
-            for generated_school in enumerate(schools):
-                if generated_school[1]["name"] == group_name:
-                    schools[generated_school[0]]["depts"].append(
-                        {
-                            "code": school_code,
-                            "name": school_name,
-                        }
-                    )
-                    added = True
-                    break
-            if added:
-                break
-            # If there is no pre-generated group found, generate it
-            schools.append(
-                {
-                    "name": group_name,
-                    "depts": [
-                        {
-                            "code": school_code,
-                            "name": school_name,
-                        }
-                    ],
-                }
-            )
-            added = True
-    # Add the school normally
-    if not added:
-        schools.append(
+    # Otherwise, place that major in a group named their name
+    else:
+        groups.append(
             {
-                "name": school_name,
+                "name": major_name,
                 "depts": [
                     {
-                        "code": school_code,
-                        "name": school_name,
+                        "code": major_code,
+                        "name": major_name,
                     }
                 ],
             }
         )
-    added = False
 
-
-print(schools)
 
 with open(f"schools.json", "w") as outfile:  # -{os.getenv("CURRENT_TERM")}
-    json.dump(schools, outfile, sort_keys=False, indent=2)
+    json.dump(groups, outfile, sort_keys=False, indent=2)
